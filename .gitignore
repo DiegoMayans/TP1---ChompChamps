@@ -3,3 +3,4 @@
 **/*.o
 
 ChompChamps
+.bash_history
