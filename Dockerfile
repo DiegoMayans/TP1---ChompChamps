@@ -11,5 +11,4 @@ WORKDIR /home/user
 # Dar permisos de ejecución al binario (si no tiene permisos)
 RUN chmod +x /home/user/ChompChamps
 
-# Ejecutar el binario cuando el contenedor inicie
-CMD ["/home/user/ChompChamps"]
+CMD ["tail", "-f", "/dev/null"]
