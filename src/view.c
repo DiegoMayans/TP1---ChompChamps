@@ -1,34 +1,22 @@
 #include <stdio.h>
-#include <unistd.h>  // Para sleep()
+#include <unistd.h>  
+#include <defs.h>
+#include<shm.h>
+#include<stdint.h>
+#include<stdlib.h>
 
-#define RESET   "\033[0m"  
-#define WHITE   "\033[47m"  // Fondo blanco
-#define BLACK   "\033[46m"  // Fondo negro
-#define RED     "\033[41m"  // Fondo rojo
-#define GREEN   "\033[42m"  // Fondo verde
+int main(int argc, char *argv[]){
 
-#define HEIGHT 10  // Tamaño del tablero
-#define WIDTH 20
-
-void printBoard(char board[HEIGHT][WIDTH]) {
-    for (int i = 0; i < HEIGHT; i++) {
-        for (int j = 0; j < WIDTH; j++) {
-            if ((i + j) % 2 == 0)  
-                printf(WHITE "  " RESET);  // Celdas blancas
-            else  
-                printf(BLACK "  " RESET);  // Celdas negras
-        }
-        printf("\n");
+    int ancho = atoi(argv[1]);
+    int alto = atoi(argv[2]);
+    
+    if (ancho <= 0 || alto <= 0) {
+        fprintf(stderr, "Error: ancho y alto deben ser valores positivos.\n");
+        exit(EXIT_FAILURE);
     }
-}
 
-
-int main() {
-    char board[HEIGHT][WIDTH] = {0};  
-    printBoard(board);  
-
-    sleep(1);  
-
+    game_board_t *board_state = get_board_state();
+    game_sync_t *game_sync = get_sync();
     
     return 0;
 }

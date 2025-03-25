@@ -33,14 +33,14 @@ void * createSHM(char * name, size_t size){
 }
 
 game_board_t * get_board_state(){
-    int fd;
-    fd = shm_open("/game_state", O_RDWR, 0666);
-    if (fd == -1){
+    int fd_state;
+    fd_state = shm_open("/game_state", O_RDWR, 0666);
+    if (fd_state == -1){
         perror("shm_open");
         exit(EXIT_FAILURE);
     }
 
-    game_board_t *board = mmap(NULL, sizeof(game_board_t), PROT_READ, MAP_SHARED, fd, 0);
+    game_board_t *board = mmap(NULL, sizeof(game_board_t), PROT_READ | PROT_WRITE, MAP_SHARED, fd_state, 0);
     if (board == MAP_FAILED){
         perror("mmap");
         exit(EXIT_FAILURE);
@@ -49,6 +49,26 @@ game_board_t * get_board_state(){
     return board;
 
 }
+
+game_sync_t *get_sync(){
+    int fd_sync;
+    fd_sync = shm_open("/game_sync", O_RDWR, 0666);
+    if (fd_sync == -1){
+        perror("shm_open");
+        exit(EXIT_FAILURE);
+    }
+
+    game_sync_t *sync = mmap(NULL, sizeof(game_sync_t), PROT_READ | PROT_WRITE, MAP_SHARED, fd_sync, 0);
+    if (sync == MAP_FAILED){
+        perror("mmap");
+        exit(EXIT_FAILURE);
+    }
+
+    return sync;
+
+}
+
+
 
 
 

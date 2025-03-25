@@ -50,3 +50,10 @@ gcc -Wall jugador/jugador1.c
 ./ChompChampsARM -p a.out
 gcc -Wall jugador/jugador1.c 
 ./ChompChampsARM -p a.out
+ls
+cd /root
+ls
+./ChompChampsARM -v src/a.out
+./ChompChampsARM -p -v src/a.out
+./ChompChampsARM -p a -v src/a.out
+./ChompChampsARM -p a -v TP1---CHOMPCHAMPS/src/a.out
