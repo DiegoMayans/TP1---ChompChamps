@@ -1,6 +1,12 @@
 # ejecutables y objeto
-**/*.out
-**/*.o
+/bin/
+*.o
+*.out
+*.exe
 
+# ejecutable principal
 ChompChamps
+
+# archivos de respaldo
 .bash_history
+
