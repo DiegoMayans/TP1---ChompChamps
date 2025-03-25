@@ -40,7 +40,13 @@ game_board_t * get_board_state(){
         exit(EXIT_FAILURE);
     }
 
+    game_board_t *board = mmap(NULL, sizeof(game_board_t), PROT_READ, MAP_SHARED, fd, 0);
+    if (board == MAP_FAILED){
+        perror("mmap");
+        exit(EXIT_FAILURE);
+    }
 
+    return board;
 
 }
 
