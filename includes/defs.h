@@ -1,5 +1,7 @@
 #include <sys/types.h>
 #include <semaphore.h>
+#include <stdbool.h>
+#include<stdio.h>
 
 typedef struct
 {
@@ -29,4 +31,4 @@ sem_t master_access; // Mutex para evitar inanición del master al acceder al es
 sem_t game_state_access; // Mutex para el estado del juego
 sem_t variable_access; // Mutex para la siguiente variable
 unsigned int players_reading_count; // Cantidad de jugadores leyendo el estado
-} ;
+} game_sync_t;
