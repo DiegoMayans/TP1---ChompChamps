@@ -6,6 +6,7 @@
 
 # ejecutable principal
 ChompChamps
+ChompChampsARM
 
 # archivos de respaldo
 .bash_history

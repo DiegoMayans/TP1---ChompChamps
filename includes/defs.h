@@ -1,7 +1,7 @@
 #include <sys/types.h>
 #include <semaphore.h>
 #include <stdbool.h>
-#include<stdio.h>
+#include <stdio.h>
 
 typedef struct
 {
@@ -32,3 +32,15 @@ sem_t game_state_access; // Mutex para el estado del juego
 sem_t variable_access; // Mutex para la siguiente variable
 unsigned int players_reading_count; // Cantidad de jugadores leyendo el estado
 } game_sync_t;
+
+typedef enum
+{
+  UP = 0,
+  UP_RIGHT = 1,
+  RIGHT = 2,
+  DOWN_RIGHT = 3,
+  DOWN = 4,
+  DOWN_LEFT = 5,
+  LEFT = 6,
+  UP_LEFT = 7
+} direction_t;
