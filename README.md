@@ -2,10 +2,12 @@
 
 Para ejecutar la aplicacion en un container de Docker:
 
-  1. Ejecutar docker-build.sh para crear la imagen e iniciar el container
-  2. Abrir una terminal y ejecutar docker-shell.sh para abrir una terminal en el container
+  1. Descargar imagen agodio/itba-so-multi-platform:3.0
+  2. Correr docker-run.sh
 
-Proposito de `compile-gcc.sh`:
+Para compilar:
+  
+  1. Instalar make y correr `make` en la terminal
 
-  Compilar rapidamente sin preocuparse por las flags. 
-  El primer parametro es el src, el segundo es el output.
+  `make` compilara los archivos dentro de la carpeta `src` y dejara los binarios 
+  en la carpeta `bin`.
