@@ -1,37 +1,39 @@
+#include <unistd.h>
+
 #include "../includes/defs.h"
 #include "../includes/shm.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <fcntl.h>
-#include <sys/mman.h>
-#include <sys/stat.h>
-#include <unistd.h>
-#include <string.h>
 
-int main(void)
-{
-    int shm_fd = shm_open("/game_state", O_RDONLY, 0666);
-    if (shm_fd == -1)
-    {
-        perror("shm_open");
-        exit(EXIT_FAILURE);
+void move(direction_t direction);
+
+int main(void) {
+  game_board_t *board = get_board_state();
+  game_sync_t *sync = get_sync();
+
+  while (!board->game_has_finished) {
+    sem_wait(&sync->access_queue);
+    sem_wait(&sync->count_access);
+    sync->players_reading_count++;
+    if (sync->players_reading_count == 1) {
+      sem_wait(&sync->game_state_access);
     }
+    sem_post(&sync->count_access);
+    sem_post(&sync->access_queue);
 
-    void *smh_ptr = mmap(NULL, sizeof(player_t) + sizeof(game_board_t), PROT_READ, MAP_SHARED, shm_fd, 0);
-    if (smh_ptr == MAP_FAILED)
-    {
-        perror("mmap");
-        exit(EXIT_FAILURE);
+    // Sección crítica: Lectura
+    sleep(1);
+
+    sem_wait(&sync->count_access);
+    sync->players_reading_count--;
+    if (sync->players_reading_count == 0) {
+      sem_post(&sync->game_state_access);
     }
+    sem_post(&sync->count_access);
 
-    game_board_t *board = (game_board_t *)smh_ptr;
-    (void)board;
+    move(RIGHT);
+  }
+  return 0;
+}
 
-    // Solicitar movimiento
-    unsigned char move_request = RIGHT;
-    write(1, &move_request, sizeof(unsigned char));
-
-    // Clean up
-    munmap(smh_ptr, sizeof(player_t) + sizeof(game_board_t));
-    close(shm_fd);
+void move(direction_t direction) {
+  write(1, &direction, sizeof(unsigned char));
 }
