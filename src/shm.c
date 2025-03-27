@@ -6,7 +6,6 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <errno.h>
-
 #include "../includes/defs.h"
 
 // codigo que va para el master
@@ -67,7 +66,7 @@ game_sync_t *get_sync()
         exit(EXIT_FAILURE);
     }
 
-    game_sync_t *sync = mmap(NULL, sizeof(game_sync_t), PROT_READ | PROT_WRITE, MAP_SHARED, fd_sync, 0);
+    game_sync_t *sync = mmap(NULL, sizeof(game_sync_t),PROT_WRITE | PROT_READ, MAP_SHARED, fd_sync, 0);
     if (sync == MAP_FAILED)
     {
         perror("mmap");
