@@ -50,7 +50,6 @@ void print_board(game_board_t * board_state){
     // Limpiar pantalla
     printf("\033[H\033[J");
 
-    // Imprimi --------- TABLERO -----------
     printf("----------TABLERO----------\n\n\n\n\n\n");
 
 
