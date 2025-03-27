@@ -25,6 +25,7 @@ int main(void)
     }
 
     game_board_t *board = (game_board_t *)smh_ptr;
+    (void)board;
 
     // Solicitar movimiento
     unsigned char move_request = RIGHT;

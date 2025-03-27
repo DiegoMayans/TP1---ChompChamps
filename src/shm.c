@@ -1,30 +1,35 @@
-#include<stdio.h>
-#include<stdlib.h>
-#include<stdint.h>
-#include<unistd.h>
-#include<sys/mman.h>
-#include<sys/stat.h>
-#include<fcntl.h>
-#include<errno.h>
-#include<includes/defs.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <unistd.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <errno.h>
 
-//codigo que va para el master
-void * createSHM(char * name, size_t size){
+#include "../includes/defs.h"
+
+// codigo que va para el master
+void *createSHM(char *name, size_t size)
+{
     int fd;
-    fd = shm_open(name, O_RDWR | O_CREAT, 0666); //mode
-    if(fd == -1){
+    fd = shm_open(name, O_RDWR | O_CREAT, 0666); // mode
+    if (fd == -1)
+    {
         perror("shm_open");
         exit(EXIT_FAILURE);
     }
 
-    //Solo para crearla
-    if (-1 == ftruncate(fd, size)){
+    // Solo para crearla
+    if (-1 == ftruncate(fd, size))
+    {
         perror("ftruncate");
         exit(EXIT_FAILURE);
     }
 
     void *p = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-    if (p = MAP_FAILED){
+    if (p == MAP_FAILED)
+    {
         perror("mmap");
         exit(EXIT_FAILURE);
     }
@@ -32,43 +37,42 @@ void * createSHM(char * name, size_t size){
     return p;
 }
 
-game_board_t * get_board_state(){
+game_board_t *get_board_state()
+{
     int fd_state;
     fd_state = shm_open("/game_state", O_RDWR, 0666);
-    if (fd_state == -1){
+    if (fd_state == -1)
+    {
         perror("shm_open");
         exit(EXIT_FAILURE);
     }
 
     game_board_t *board = mmap(NULL, sizeof(game_board_t), PROT_READ | PROT_WRITE, MAP_SHARED, fd_state, 0);
-    if (board == MAP_FAILED){
+    if (board == MAP_FAILED)
+    {
         perror("mmap");
         exit(EXIT_FAILURE);
     }
 
     return board;
-
 }
 
-game_sync_t *get_sync(){
+game_sync_t *get_sync()
+{
     int fd_sync;
     fd_sync = shm_open("/game_sync", O_RDWR, 0666);
-    if (fd_sync == -1){
+    if (fd_sync == -1)
+    {
         perror("shm_open");
         exit(EXIT_FAILURE);
     }
 
     game_sync_t *sync = mmap(NULL, sizeof(game_sync_t), PROT_READ | PROT_WRITE, MAP_SHARED, fd_sync, 0);
-    if (sync == MAP_FAILED){
+    if (sync == MAP_FAILED)
+    {
         perror("mmap");
         exit(EXIT_FAILURE);
     }
 
     return sync;
-
 }
-
-
-
-
-

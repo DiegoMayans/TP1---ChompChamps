@@ -1,3 +1,6 @@
+#ifndef DEFS_H
+#define DEFS_H
+
 #include <sys/types.h>
 #include <semaphore.h>
 #include <stdbool.h>
@@ -44,3 +47,5 @@ typedef enum
   LEFT = 6,
   UP_LEFT = 7
 } direction_t;
+
+#endif
