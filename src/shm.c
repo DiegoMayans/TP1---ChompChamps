@@ -40,14 +40,14 @@ void *createSHM(char *name, size_t size)
 game_board_t *get_board_state()
 {
     int fd_state;
-    fd_state = shm_open("/game_state", O_RDWR, 0666);
+    fd_state = shm_open("/game_state", O_RDONLY, 0644);
     if (fd_state == -1)
     {
         perror("shm_open");
         exit(EXIT_FAILURE);
     }
 
-    game_board_t *board = mmap(NULL, sizeof(game_board_t), PROT_READ | PROT_WRITE, MAP_SHARED, fd_state, 0);
+    game_board_t *board = mmap(NULL, sizeof(game_board_t), PROT_READ, MAP_SHARED, fd_state, 0);
     if (board == MAP_FAILED)
     {
         perror("mmap");

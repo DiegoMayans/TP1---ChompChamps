@@ -62,3 +62,18 @@ ls
 make
 make
 exit
+ls
+cd root
+ls
+cd src/
+ls
+vim view.c 
+vim view.c 
+make
+ls
+cd ..
+make
+ls
+make
+ls bin
+exit
