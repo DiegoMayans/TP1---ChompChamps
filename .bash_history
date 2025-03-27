@@ -57,3 +57,8 @@ ls
 ./ChompChampsARM -p -v src/a.out
 ./ChompChampsARM -p a -v src/a.out
 ./ChompChampsARM -p a -v TP1---CHOMPCHAMPS/src/a.out
+cd /root
+ls
+make
+make
+exit

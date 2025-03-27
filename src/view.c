@@ -5,9 +5,15 @@
 #include "../includes/defs.h"
 #include "../includes/shm.h"
 
-int main(int argc, char *argv[])
-{
+void print_board(game_board_t * board_state);
 
+int main(int argc, char *argv[]){
+
+    if (argc > 3){
+        fprintf(stderr, "Uso: %s <ancho> <alto>\n", argv[0]);
+        exit(EXIT_FAILURE);
+    }
+    
     int ancho = atoi(argv[1]);
     int alto = atoi(argv[2]);
 
@@ -21,35 +27,29 @@ int main(int argc, char *argv[])
     game_sync_t *game_sync = get_sync();
     (void)game_sync;
 
-    // La vista debe imprimir el estado del juego
-    // Primero imprimira el tablero en forma de grilla donde cada celda es un caracter. El caracter
-    // a imprimir es el valor de la celda, es decir, board_state->board[x][y]
-    // A continuacion imprime los jugadores en una lista
+    sem_t *sem_A = &game_sync->print_needed; //de aca sabe si hay cambios para imprimir
+    sem_t *sem_B = &game_sync->print_done; 
+
 
     while (1)
     {
-        // sem_wait(&game_sync->print_needed);
-        // sem_wait(&game_sync->game_state_access);
+        sem_wait(sem_A); 
 
-        // Imprimir tablero
-        for (int i = 0; i < alto; i++)
-        {
-            for (int j = 0; j < ancho; j++)
-            {
-                printf("%c", board_state->board[i * ancho + j]);
-            }
-            printf("\n");
-        }
+        print_board(board_state);
 
-        // Imprimir jugadores
-        for (int i = 0; i < board_state->player_count; i++)
-        {
-            printf("Jugador %s: %d puntos\n", board_state->players_list[i].player_name, board_state->players_list[i].score);
-        }
-
-        // sem_post(&game_sync->print_done);
-        // sem_post(&game_sync->game_state_access);
+        sem_post(sem_B);
     }
 
     return 0;
+
+
+}
+
+void print_board(game_board_t * board_state){
+    for (int i=0; i < board_state->width; i++){
+        for (int j=0; j < board_state->height; j++){
+            printf("%d ", board_state->board[j]);
+        }
+        printf("\n");
+    }
 }
