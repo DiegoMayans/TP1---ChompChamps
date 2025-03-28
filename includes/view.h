@@ -4,6 +4,7 @@
 #include "defs.h"
 #include "stdio.h"
 #include "stdlib.h"
+#include "shm.h"
 
 const int colors[] = {209, 200, 191, 86, 140, 56, 29, 95, 221};
 
