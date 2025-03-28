@@ -5,10 +5,10 @@
 #include "../includes/defs.h"
 #include "../includes/shm.h"
 #include "../includes/view.h"
+#include "math.h"
 
 
 int main(int argc, char *argv[]){
-
     if (argc != 3){
         fprintf(stderr, "Uso: %s <ancho> <alto>\n", argv[0]);
         exit(EXIT_FAILURE);
@@ -23,7 +23,8 @@ int main(int argc, char *argv[]){
         exit(EXIT_FAILURE);
     }
 
-    game_board_t *board_state = get_board_state();
+
+    game_board_t *board_state = get_board_state(alto * ancho);
     game_sync_t *game_sync = get_sync();
 
     sem_t *sem_A = &game_sync->print_needed; //de aca sabe si hay cambios para imprimir
@@ -32,10 +33,12 @@ int main(int argc, char *argv[]){
     while (!board_state->game_has_finished)
     {
         sem_wait(sem_A); 
-        clear_screen();
-        print_board(board_state);
 
-        // sem_post(sem_B);
+        print_board(board_state, alto, ancho);
+        sleep(2);
+        clear_screen();
+
+        sem_post(sem_B);
     }
 
     return 0;
@@ -43,10 +46,19 @@ int main(int argc, char *argv[]){
 
 }
 
-void print_board(game_board_t * board_state){
-    for (int i=0; i < board_state->height; i++){
-        for (int j=0; j < board_state->width; j++){
-            printf("%2d ", board_state->board[i * board_state->width + j]);
+void print_board(game_board_t * board_state, int alto, int ancho){
+    for (int i=0; i < alto; i++){
+        for (int j=0; j < ancho; j++){
+            if (board_state->board[i * (board_state->width) + j] < 0){
+                int player = abs(board_state->board[i * (board_state->width) + j]);
+                if ((i == board_state->players_list[player].x) && (j == board_state->players_list[player].y)){
+                    printf("\033[38;5;%dm| %d |\033[0m", head_colors[player], board_state->board[i * (board_state->width) + j]);
+                } else {
+                    printf("\033[38;5;%dm| %d |\033[0m", colors[player], board_state->board[i * (board_state->width) + j]);
+                }
+            } else {
+                printf("| %d |", board_state->board[i * (board_state->width) + j]);
+            }
         }
         printf("\n");
     }
@@ -55,5 +67,4 @@ void print_board(game_board_t * board_state){
 
 void clear_screen(){
     printf("\033[H\033[J");
-    fflush(stdout); 
 }

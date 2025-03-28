@@ -36,7 +36,7 @@ void *createSHM(char *name, size_t size)
     return p;
 }
 
-game_board_t *get_board_state()
+game_board_t *get_board_state(int size_tablero)
 {
     int fd_state;
     fd_state = shm_open("/game_state", O_RDONLY, 0644);
@@ -46,7 +46,7 @@ game_board_t *get_board_state()
         exit(EXIT_FAILURE);
     }
 
-    game_board_t *board = mmap(NULL, sizeof(game_board_t), PROT_READ, MAP_SHARED, fd_state, 0);
+    game_board_t *board = mmap(NULL, sizeof(game_board_t) + size_tablero * sizeof(int), PROT_READ, MAP_SHARED, fd_state, 0);
     if (board == MAP_FAILED)
     {
         perror("mmap");
