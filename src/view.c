@@ -9,6 +9,7 @@
 
 
 int main(int argc, char *argv[]){
+
     if (argc != 3){
         fprintf(stderr, "Uso: %s <ancho> <alto>\n", argv[0]);
         exit(EXIT_FAILURE);
@@ -25,7 +26,16 @@ int main(int argc, char *argv[]){
 
 
     game_board_t *board_state = get_board_state(alto * ancho);
+    if (board_state == NULL) {
+        fprintf(stderr, "Error: No se pudo obtener el estado del tablero\n");
+        exit(EXIT_FAILURE);
+    }
+
     game_sync_t *game_sync = get_sync();
+    if (game_sync == NULL) {
+        fprintf(stderr, "Error: No se pudo obtener la sincronización\n");
+        exit(EXIT_FAILURE);
+    }
 
     sem_t *sem_A = &game_sync->print_needed; //de aca sabe si hay cambios para imprimir
     sem_t *sem_B = &game_sync->print_done; 
@@ -34,9 +44,9 @@ int main(int argc, char *argv[]){
     {
         sem_wait(sem_A); 
 
-        print_board(board_state, alto, ancho);
-        sleep(2);
         clear_screen();
+        print_board(board_state, alto, ancho);
+        print_stats(board_state);
 
         sem_post(sem_B);
     }
@@ -67,4 +77,15 @@ void print_board(game_board_t * board_state, int alto, int ancho){
 
 void clear_screen(){
     printf("\033[H\033[J");
+}
+void print_stats(game_board_t *board_state) {
+    printf("\n==== Estadísticas de Jugadores ====\n");
+    for (int i = 0; i < board_state->player_count; i++) {
+        printf("\033[38;5;%dmJugador %d:\033[0m\n", colors[i], i);
+        printf("  - Posición: (%d, %d)\n", board_state->players_list[i].x, board_state->players_list[i].y);
+        printf("  - Puntaje: %d\n", board_state->players_list[i].score);
+        // printf("  - Movimientos: %d\n", board_state->players_list[i].moves);
+        // printf("  - Estado: %s\n", board_state->players_list[i].active ? "Activo" : "Inactivo");
+        printf("---------------------------\n");
+    }
 }

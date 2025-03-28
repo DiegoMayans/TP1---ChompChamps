@@ -116,3 +116,30 @@ make
 ./ChompChampsARM -p bin/player  -v bin/view -w 20 -h 20
 ./ChompChampsARM -p bin/player  -v bin/view -w 20 -h 20
 exit
+cd /root
+make
+make
+make
+./ChompChampsARM -p bin/player  -v bin/view -w 20 -h 20
+./ChompChampsARM -p bin/player  -v bin/view -w 20 -h 20
+make
+./ChompChampsARM -p bin/player  -v bin/view -w 20 -h 20
+make
+./ChompChampsARM -p bin/player  -v bin/view -w 20 -h 20
+make
+./ChompChampsARM -p bin/player -v bin/view -w 20 -h 20
+make
+./ChompChampsARM -p bin/player -v bin/view -w 20 -h 20
+make
+./ChompChampsARM -p bin/player -v bin/view -w 20 -h 20
+make
+./ChompChampsARM -p bin/player -v bin/view -w 20 -h 20
+make
+./ChompChampsARM -p bin/player -v bin/view -w 20 -h 20
+make
+./ChompChampsARM -p bin/player -v bin/view -w 20 -h 20
+make
+./ChompChampsARM -p bin/player -v bin/view -w 20 -h 20
+./ChompChampsARM -p bin/player bin/player -v bin/view -w 20 -h 20
+make
+./ChompChampsARM -p bin/player bin/player -v bin/view -w 20 -h 20
