@@ -1,3 +1,6 @@
+#ifndef VIEW_H
+#define VIEW_H
+
 #include "defs.h"
 #include "stdio.h"
 #include "stdlib.h"
@@ -13,3 +16,5 @@ void print_board(game_board_t * board_state, int alto, int ancho);
 void print_stats(game_board_t * board_state);
 
 void clear_screen();
+
+#endif
