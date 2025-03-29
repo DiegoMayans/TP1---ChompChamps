@@ -143,3 +143,124 @@ make
 ./ChompChampsARM -p bin/player bin/player -v bin/view -w 20 -h 20
 make
 ./ChompChampsARM -p bin/player bin/player -v bin/view -w 20 -h 20
+./ChompChampsARM -p bin/player -v bin/view -w 20 -h 20
+cd /root
+./ChompChampsARM -p bin/player -v bin/view -w 20 -h 20
+./ChompChampsARM -p bin/player -v bin/view
+./ChompChampsARM -p bin/player bin/player bin/player bin/player -v bin/view
+cd /root
+make
+make
+./ChompChampsARM -p bin/player bin/player bin/player bin/player -v bin/view
+./ChompChampsARM -p bin/player -v bin/view
+make
+./ChompChampsARM -p bin/player -v bin/view
+./ChompChampsARM -p bin/player bin/player bin/player bin/player -v bin/view
+./ChompChampsARM -p bin/player -v bin/view
+make
+./ChompChampsARM -p bin/player -v bin/view
+make
+./ChompChampsARM -p bin/player -v bin/view
+make
+./ChompChampsARM -p bin/player -v bin/view
+make
+./ChompChampsARM -p bin/player -v bin/view
+make
+./ChompChampsARM -p bin/player -v bin/view
+make
+./ChompChampsARM -p bin/player -v bin/view
+make
+./ChompChampsARM -p bin/player -v bin/view
+make
+make
+./ChompChampsARM -p bin/player -v bin/view
+./ChompChampsARM -p bin/player -v bin/view
+make
+./ChompChampsARM -p bin/player -v bin/view
+make
+./ChompChampsARM -p bin/player -v bin/view
+make
+./ChompChampsARM -p bin/player -v bin/view
+./ChompChampsARM -p bin/player bin/player -v bin/view
+./ChompChampsARM -p bin/player bin/player bin/player -v bin/view
+make
+./ChompChampsARM -p bin/player bin/player bin/player -v bin/view
+make
+./ChompChampsARM -p bin/player bin/player bin/player -v bin/view
+make
+make
+./ChompChampsARM -p bin/player bin/player bin/player -v bin/view
+make
+./ChompChampsARM -p bin/player bin/player bin/player -v bin/view
+make
+./ChompChampsARM -p bin/player bin/player bin/player -v bin/view
+make
+./ChompChampsARM -p bin/player bin/player bin/player -v bin/view
+make
+./ChompChampsARM -p bin/player bin/player bin/player -v bin/view
+make
+./ChompChampsARM -p bin/player bin/player bin/player -v bin/view
+make
+./ChompChampsARM -p bin/player bin/player bin/player -v bin/view
+make
+./ChompChampsARM -p bin/player bin/player bin/player -v bin/view
+make
+./ChompChampsARM -p bin/player bin/player bin/player -v bin/view
+./ChompChampsARM -p bin/player bin/player bin/player -v bin/view -w 20 -h 20
+make
+./ChompChampsARM -p bin/player bin/player bin/player -v bin/view -w 20 -h 20
+cd /root
+make
+./ChompChampsARM -p bin/player bin/player bin/player -v bin/view -w 20 -h 20
+make
+./ChompChampsARM -p bin/player bin/player bin/player -v bin/view -w 20 -h 20
+./ChompChampsARM -p bin/player bin/player bin/player bin/player bin/player bin/player bin/player bin/player bin/player-v bin/view -w 20 -h 20
+./ChompChampsARM -p bin/player bin/player bin/player bin/player bin/player bin/player bin/player bin/player -v bin/view -w 20 -h 20
+make
+./ChompChampsARM -p bin/player bin/player bin/player -v bin/view -w 20 -h 20
+make
+./ChompChampsARM -p bin/player bin/player bin/player -v bin/view -w 20 -h 20
+make
+./ChompChampsARM -p bin/player bin/player bin/player -v bin/view -w 20 -h 20
+make
+./ChompChampsARM -p bin/player bin/player bin/player -v bin/view -w 20 -h 20
+make
+./ChompChampsARM -p bin/player bin/player bin/player -v bin/view -w 20 -h 20
+make
+./ChompChampsARM -p bin/player bin/player bin/player -v bin/view -w 20 -h 20
+make
+./ChompChampsARM -p bin/player bin/player bin/player -v bin/view -w 20 -h 20
+./ChompChampsARM -p bin/player bin/player bin/player bin/player bin/player bin/player bin/player bin/player bin/player -v bin/view -w 20 -h 20
+make
+./ChompChampsARM -p bin/player bin/player bin/player bin/player bin/player bin/player bin/player bin/player bin/player -v bin/view -w 20 -h 20
+make
+./ChompChampsARM -p bin/player bin/player bin/player bin/player bin/player bin/player bin/player bin/player bin/player -v bin/view -w 20 -h 20
+make
+./ChompChampsARM -p bin/player bin/player bin/player bin/player bin/player bin/player bin/player bin/player bin/player -v bin/view -w 20 -h 20
+make
+./ChompChampsARM -p bin/player bin/player bin/player bin/player bin/player bin/player bin/player bin/player bin/player -v bin/view -w 20 -h 20
+cd /riit
+cd /root
+ls
+make
+./ChompChampsARM -p bin/player bin/player bin/player bin/player bin/player bin/player bin/player bin/player bin/player -v bin/view -w 20 -h 20
+cd /root
+make
+./ChompChampsARM -p bin/player bin/player bin/player bin/player bin/player bin/player bin/player bin/player bin/player -v bin/view -w 20 -h 20
+make
+cd /root
+make
+./ChompChampsARM -p bin/player bin/player -v bin/view -w 20 -h 20
+./ChompChampsARM -p bin/player -v bin/view 
+./ChompChampsARM -p bin/player -v bin/view 
+./ChompChampsARM -p bin/player bin/player bin/player -v bin/view 
+./ChompChampsARM -p bin/player -v bin/view 
+make
+./ChompChampsARM -p bin/player -v bin/view 
+./ChompChampsARM -p bin/player bin/player bin/player -v bin/view 
+make
+./ChompChampsARM -p bin/player bin/player bin/player -v bin/view 
+make
+./ChompChampsARM -p bin/player bin/player -v bin/view 
+./ChompChampsARM -p bin/player -v bin/view 
+./ChompChampsARM -p bin/player bin/player bin/player bin/player bin/player -v bin/view 
