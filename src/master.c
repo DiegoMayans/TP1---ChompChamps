@@ -9,7 +9,7 @@
 
 #define MAX_PLAYERS 9
 
-void crear_proceso(char *ejecutable, int fd[2]) {
+void create_process(char *ejecutable, int fd[2]) {
   pid_t pid = fork();
   if (pid == -1) {
     perror("fork");
@@ -59,14 +59,14 @@ int main(int argc, char *argv[]) {
           exit(EXIT_FAILURE);
         }
 
-        crear_proceso(argv[i], fd);
+        create_process(argv[i], fd);
         players++;
         i++;
       }
     } else if (strcmp(argv[i], "-v") == 0) { // -v args
       i++;
       while (i < argc && argv[i][0] != '-') { // Creacion de procesos vistas
-        crear_proceso(argv[i], fd);
+        create_process(argv[i], fd);
         views++;
         i++;
       }

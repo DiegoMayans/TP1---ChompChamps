@@ -93,9 +93,7 @@ void print_winner(game_board_t *board){
     int max_score = -1;
     int winner = -1;
     for (int i = 0; i < board->player_count; i++){
-            printf("%d", board->players_list[i].score);
-        if (board->players_list[i].score > -1){
-            printf("entre");
+        if ((int)board->players_list[i].score > -1){
             max_score = board->players_list[i].score;
             winner = i;
         }

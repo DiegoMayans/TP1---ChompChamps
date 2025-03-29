@@ -1,6 +1,8 @@
 #ifndef DEFS_H
 #define DEFS_H
 
+#define CANT_MOVES 8
+
 typedef enum {
   UP = 0,
   UP_RIGHT = 1,

@@ -14,20 +14,21 @@ int main(int argc, char *argv[]) {
         exit(EXIT_FAILURE);
     }
     
-    int ancho = atoi(argv[1]);
-    int alto = atoi(argv[2]);
+    int width = atoi(argv[1]);
+    int height = atoi(argv[2]);
 
-    if (ancho <= 0 || alto <= 0)
+    if (width <= 0 || height <= 0)
     {
         fprintf(stderr, "Error: ancho y alto deben ser valores positivos.\n");
         exit(EXIT_FAILURE);
     }
 
-  game_board_t *board = get_board_state(alto * ancho);
+  game_board_t *board = get_board_state(height * width);
   game_sync_t *sync = get_sync();
 
 
   while (!board->game_has_finished) {
+    int rand_num = rand() % CANT_MOVES;
     sem_wait(&sync->access_queue);
     sem_wait(&sync->count_access);
     sync->players_reading_count++;
@@ -47,7 +48,7 @@ int main(int argc, char *argv[]) {
     }
     sem_post(&sync->count_access);
 
-    move(RIGHT);
+    move(rand_num);
   }
   return 0;
 }
