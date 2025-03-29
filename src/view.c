@@ -59,9 +59,9 @@ void print_board(game_board_t *board_state, int height, int width) {
             if (board_state->board[(i * (board_state->width)) + j] <= 0) {
             int player = abs(board_state->board[(i * (board_state->width)) + j]);
             if ((i == board_state->players_list[player].y) && (j == board_state->players_list[player].x)) {
-                printf("\033[38;5;%dm~>>> \033[0m", head_colors[player]);
+                printf("\033[38;5;%dm [:) \033[0m", head_colors[player]);
             } else {
-            printf("\033[38;5;%dm~~~~~\033[0m", colors[player]);
+            printf("\033[38;5;%dm ### \033[0m", colors[player]);
         }
         } else {
             printf("|%2d |", board_state->board[(i * (board_state->width)) + j]);

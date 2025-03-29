@@ -264,3 +264,37 @@ make
 ./ChompChampsARM -p bin/player bin/player -v bin/view 
 ./ChompChampsARM -p bin/player -v bin/view 
 ./ChompChampsARM -p bin/player bin/player bin/player bin/player bin/player -v bin/view 
+cd /root
+make
+./ChompChampsARM -p bin/player -v bin/view 
+make
+./ChompChampsARM -p bin/player -v bin/view 
+make
+./ChompChampsARM -p bin/player -v bin/view 
+make
+./ChompChampsARM -p bin/player -v bin/view 
+make
+./ChompChampsARM -p bin/player -v bin/view 
+make
+./ChompChampsARM -p bin/player -v bin/view 
+make
+./ChompChampsARM -p bin/player -v bin/view 
+./ChompChampsARM -p bin/player -v bin/view 
+make
+./ChompChampsARM -p bin/player -v bin/view 
+make
+./ChompChampsARM -p bin/player -v bin/view 
+make
+./ChompChampsARM -p bin/player -v bin/view 
+make
+./ChompChampsARM -p bin/player -v bin/view 
+make
+./ChompChampsARM -p bin/player -v bin/view 
+make
+./ChompChampsARM -p bin/player -v bin/view 
+make
+./ChompChampsARM -p bin/player -v bin/view 
+make
+./ChompChampsARM -p bin/player -v bin/view 
+make
+./ChompChampsARM -p bin/player -v bin/view 
