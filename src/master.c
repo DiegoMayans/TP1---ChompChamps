@@ -8,6 +8,7 @@
 #include <unistd.h>
 
 #define MAX_PLAYERS 9
+#define MAX_VIEWS 1
 
 void create_process(char *ejecutable, int fd[2]) {
   pid_t pid = fork();
@@ -33,14 +34,8 @@ void create_process(char *ejecutable, int fd[2]) {
 }
 
 int main(int argc, char *argv[]) {
-  // Crear pipe fd[0] -> lectura, fd[1] -> escritura
-  // Master lee de fd[0] y escribe en memoria compartida
-  // Players y vista leen de memoria compartida y escriben en fd[1]
-  int fd[2];
-  if (pipe(fd) == -1) {
-    perror("pipe");
-    exit(EXIT_FAILURE);
-  }
+  int players_read_fds[MAX_PLAYERS];  // Colección de File Descriptors para players
+  int views_read_fds[MAX_VIEWS];      // Colección de File Descriptors para las views
 
   int players = 0;
   int views = 0;
@@ -58,15 +53,25 @@ int main(int argc, char *argv[]) {
                   MAX_PLAYERS);
           exit(EXIT_FAILURE);
         }
-
+        int fd[2];
         create_process(argv[i], fd);
+        players_read_fds[players] = fd[0];
+        close(fd[1]);
         players++;
         i++;
       }
     } else if (strcmp(argv[i], "-v") == 0) { // -v args
       i++;
       while (i < argc && argv[i][0] != '-') { // Creacion de procesos vistas
+        if(views >= MAX_VIEWS) {
+          fprintf(stderr, "Error: No se pueden tener mas de %d vistas\n",
+                  MAX_VIEWS);
+          exit(EXIT_FAILURE);
+        }
+        int fd[2];
         create_process(argv[i], fd);
+        views_read_fds[views] = fd[0];
+        close(fd[1]);
         views++;
         i++;
       }
@@ -88,9 +93,15 @@ int main(int argc, char *argv[]) {
     fprintf(stderr, "Error: No se especificaron vistas\n");
     exit(EXIT_FAILURE);
   }
+  
+  for(int i = 0; i < players; i++) {
+    close(players_read_fds[i]); // Cerramos los pipes de escritura para los players
+  }
 
-  close(fd[1]); // Cerramos pipe de escritura
-
+  for(int i = 0; i < views; i++) {
+    close(views_read_fds[i]);   // Cerramos los pipes de escritura para las vistas
+  }
+  
   while (wait(NULL) > 0)
     ;
 
