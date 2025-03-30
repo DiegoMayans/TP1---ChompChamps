@@ -1,6 +1,9 @@
 #ifndef DEFS_H
 #define DEFS_H
 
+#define GAME_STATE_PATH "/game_state"
+#define GAME_SYNC_PATH "/game_sync"
+
 #define CANT_MOVES 8
 
 typedef enum {

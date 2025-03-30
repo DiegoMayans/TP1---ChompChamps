@@ -6,11 +6,16 @@
 #include <string.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include "../includes/shm.h"
+#include "../includes/defs.h"
 
 #define MAX_PLAYERS 9
 #define MAX_VIEWS 1
 
-void create_process(char *ejecutable, int fd[2]) {
+#define MIN_WIDTH 10
+#define MIN_HEIGHT 10
+
+void create_process(char *ejecutable, int fd[2], char *height, char *width) {
   pid_t pid = fork();
   if (pid == -1) {
     perror("fork");
@@ -24,7 +29,7 @@ void create_process(char *ejecutable, int fd[2]) {
     dup(fd[1]);           // Redirigimos stdout al pipe
     close(fd[1]);         // Cerramos pipe después de duplicar
 
-    char *new_argv[] = {ejecutable, NULL};
+    char *new_argv[] = {ejecutable, height, width, NULL};
     char *new_envp[] = {NULL};
 
     execve(ejecutable, new_argv, new_envp);
@@ -34,6 +39,10 @@ void create_process(char *ejecutable, int fd[2]) {
 }
 
 int main(int argc, char *argv[]) {
+  // Se crean las dos zonas de memoria compartida
+  game_board_t *game_board = (game_board_t*) createSHM(GAME_STATE_PATH, sizeof(game_board_t));
+  game_sync_t *game_sync = (game_sync_t*) createSHM(GAME_SYNC_PATH, sizeof(game_sync_t));
+
   int players_read_fds[MAX_PLAYERS];  // Colección de File Descriptors para players
   int views_read_fds[MAX_VIEWS];      // Colección de File Descriptors para las views
 
@@ -41,6 +50,7 @@ int main(int argc, char *argv[]) {
   int views = 0;
   int flag_players = 0; // Opcion -p obligatoria
   int i = 1;
+  char *width = "10", *height = "10";
 
   while (i < argc) {                  // Loop para recorrer args
     if (strcmp(argv[i], "-p") == 0) { // -p args
@@ -54,7 +64,7 @@ int main(int argc, char *argv[]) {
           exit(EXIT_FAILURE);
         }
         int fd[2];
-        create_process(argv[i], fd);
+        create_process(argv[i], fd, height, width);
         players_read_fds[players] = fd[0];
         close(fd[1]);
         players++;
@@ -69,12 +79,30 @@ int main(int argc, char *argv[]) {
           exit(EXIT_FAILURE);
         }
         int fd[2];
-        create_process(argv[i], fd);
+        create_process(argv[i], fd, height, width);
         views_read_fds[views] = fd[0];
         close(fd[1]);
         views++;
         i++;
       }
+    } else if(strcmp(argv[i], "-h")) {
+      i++;
+      if(atoi(argv[i]) < MIN_HEIGHT) {
+        fprintf(stderr, "Error: El valor mínimo para el ancho de la pantalla es %d\n", 
+                  MIN_WIDTH);
+        exit(EXIT_FAILURE);
+      }
+      width = argv[i];
+      i++;
+    } else if(strcmp(argv[i], "-w")) {
+      i++;
+      if(atoi(argv[i]) < MIN_WIDTH) {
+        fprintf(stderr, "Error: El valor mínimo para el ancho de la pantalla es %d\n", 
+                  MIN_WIDTH);
+        exit(EXIT_FAILURE);
+      }
+      width = argv[i];
+      i++;
     } else {
       i++; // Saltear arg
     }
@@ -102,8 +130,7 @@ int main(int argc, char *argv[]) {
     close(views_read_fds[i]);   // Cerramos los pipes de escritura para las vistas
   }
   
-  while (wait(NULL) > 0)
-    ;
+  while (wait(NULL) > 0) {printf("a\n");};
 
   exit(EXIT_SUCCESS);
 }

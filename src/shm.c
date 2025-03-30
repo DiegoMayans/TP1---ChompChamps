@@ -36,7 +36,7 @@ void *createSHM(char *name, size_t size) {
 
 game_board_t *get_board_state(size_t tam_tablero) {
     int fd_state;
-    fd_state = shm_open("/game_state", O_RDONLY, 0644);
+    fd_state = shm_open(GAME_STATE_PATH, O_RDONLY, 0644);
     if (fd_state == -1) {
     perror("shm_open");
     exit(EXIT_FAILURE);
@@ -54,7 +54,7 @@ game_board_t *get_board_state(size_t tam_tablero) {
 
 game_sync_t *get_sync() {
     int fd_sync;
-    fd_sync = shm_open("/game_sync", O_RDWR, 0666);
+    fd_sync = shm_open(GAME_SYNC_PATH, O_RDWR, 0666);
     if (fd_sync == -1) {
     perror("shm_open");
     exit(EXIT_FAILURE);
