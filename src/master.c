@@ -64,6 +64,7 @@ int main(int argc, char *argv[]) {
           exit(EXIT_FAILURE);
         }
         int fd[2];
+        pipe(fd);
         create_process(argv[i], fd, height, width);
         players_read_fds[players] = fd[0];
         close(fd[1]);
@@ -79,6 +80,7 @@ int main(int argc, char *argv[]) {
           exit(EXIT_FAILURE);
         }
         int fd[2];
+        pipe(fd);
         create_process(argv[i], fd, height, width);
         views_read_fds[views] = fd[0];
         close(fd[1]);
