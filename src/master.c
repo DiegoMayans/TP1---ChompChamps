@@ -28,7 +28,7 @@ typedef struct {
 void create_player(char *executable, int fd[2], char *height, char *width);
 void create_view(char *executable, char *height, char *width);
 void parse_arguments(argument_t *arguments, int argc, char *argv[]);
-int process_arguments(int argc, char *argv[], argument_t *arguments, int players_read_fds[]);
+int parse_childs(int argc, char *argv[], argument_t *arguments, int players_read_fds[]);
 void validate_arguments(int flag_players, int players, int views);
 
 int main(int argc, char *argv[]) {
@@ -47,7 +47,7 @@ int main(int argc, char *argv[]) {
     game_sync_t *game_sync = (game_sync_t *)createSHM(GAME_SYNC_PATH, sizeof(game_sync_t));
     (void)game_sync;
 
-    players = process_arguments(argc, argv, &arguments, players_read_fds);
+    players = parse_childs(argc, argv, &arguments, players_read_fds);
 
     // A partir de aca se escribe la logica del master
 
@@ -145,7 +145,7 @@ void parse_arguments(argument_t *arguments, int argc, char *argv[]) {
     }
 }
 
-int process_arguments(int argc, char *argv[], argument_t *arguments, int players_read_fds[]) {
+int parse_childs(int argc, char *argv[], argument_t *arguments, int players_read_fds[]) {
     int players = 0, flag_players = 0, views = 0;
     int i = 1;
     while (i < argc) {                     // Loop through args
