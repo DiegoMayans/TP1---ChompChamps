@@ -29,6 +29,7 @@ int main(int argc, char *argv[]) {
 
   while (!board->game_has_finished) {
     int rand_num = rand() % CANT_MOVES;
+
     sem_wait(&sync->access_queue);
     sem_wait(&sync->count_access);
     sync->players_reading_count++;

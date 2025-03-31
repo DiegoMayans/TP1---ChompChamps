@@ -6,6 +6,7 @@
 #include <string.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <stdbool.h>
 #include "../includes/shm.h"
 #include "../includes/defs.h"
 
@@ -14,43 +15,32 @@
 
 #define MIN_WIDTH 10
 #define MIN_HEIGHT 10
+#define MAX_DIGITS 3
 
-void create_process(char *ejecutable, int fd[2], char *height, char *width) {
-  pid_t pid = fork();
-  if (pid == -1) {
-    perror("fork");
-    exit(EXIT_FAILURE);
-  }
+typedef struct {
+  char height[MAX_DIGITS], width[MAX_DIGITS];
+  int delay;
+  int timeout;
+  int seed;
+} argument_t;
 
-  if (pid == 0) {
-    // Proceso hijo
-    close(fd[0]);         // No necesita leer del pipe
-    close(STDOUT_FILENO); // Cerramos stdout
-    dup(fd[1]);           // Redirigimos stdout al pipe
-    close(fd[1]);         // Cerramos pipe después de duplicar
-
-    char *new_argv[] = {ejecutable, height, width, NULL};
-    char *new_envp[] = {NULL};
-
-    execve(ejecutable, new_argv, new_envp);
-    perror("execve");
-    exit(EXIT_FAILURE);
-  }
-}
+void create_player(char *executable, int fd[2], char *height, char *width);
+void create_view(char *executable, char *height, char *width);
+void parse_arguments(argument_t *arguments, int argc, char *argv[]);
 
 int main(int argc, char *argv[]) {
   // Se crean las dos zonas de memoria compartida
-  game_board_t *game_board = (game_board_t*) createSHM(GAME_STATE_PATH, sizeof(game_board_t));
-  game_sync_t *game_sync = (game_sync_t*) createSHM(GAME_SYNC_PATH, sizeof(game_sync_t));
-
   int players_read_fds[MAX_PLAYERS];  // Colección de File Descriptors para players
-  int views_read_fds[MAX_VIEWS];      // Colección de File Descriptors para las views
 
-  int players = 0;
-  int views = 0;
-  int flag_players = 0; // Opcion -p obligatoria
+  argument_t arguments = {"10", "10", 200, 10, 0};
+  int players = 0, views = 0, flag_players = 0; // Opcion -p obligatoria
   int i = 1;
-  char *width = "10", *height = "10";
+
+  parse_arguments(&arguments, argc, argv);
+  
+  game_board_t *game_board = (game_board_t*) createSHM(GAME_STATE_PATH, sizeof(game_board_t) 
+      + sizeof(int) * atoi(arguments.width) * atoi(arguments.height));
+  game_sync_t *game_sync = (game_sync_t*) createSHM(GAME_SYNC_PATH, sizeof(game_sync_t));
 
   while (i < argc) {                  // Loop para recorrer args
     if (strcmp(argv[i], "-p") == 0) { // -p args
@@ -65,7 +55,7 @@ int main(int argc, char *argv[]) {
         }
         int fd[2];
         pipe(fd);
-        create_process(argv[i], fd, height, width);
+        create_player(argv[i], fd, arguments.height, arguments.width);
         players_read_fds[players] = fd[0];
         close(fd[1]);
         players++;
@@ -79,32 +69,10 @@ int main(int argc, char *argv[]) {
                   MAX_VIEWS);
           exit(EXIT_FAILURE);
         }
-        int fd[2];
-        pipe(fd);
-        create_process(argv[i], fd, height, width);
-        views_read_fds[views] = fd[0];
-        close(fd[1]);
+        create_view(argv[i], arguments.height, arguments.width);
         views++;
         i++;
       }
-    } else if(strcmp(argv[i], "-h")) {
-      i++;
-      if(atoi(argv[i]) < MIN_HEIGHT) {
-        fprintf(stderr, "Error: El valor mínimo para el ancho de la pantalla es %d\n", 
-                  MIN_WIDTH);
-        exit(EXIT_FAILURE);
-      }
-      width = argv[i];
-      i++;
-    } else if(strcmp(argv[i], "-w")) {
-      i++;
-      if(atoi(argv[i]) < MIN_WIDTH) {
-        fprintf(stderr, "Error: El valor mínimo para el ancho de la pantalla es %d\n", 
-                  MIN_WIDTH);
-        exit(EXIT_FAILURE);
-      }
-      width = argv[i];
-      i++;
     } else {
       i++; // Saltear arg
     }
@@ -127,12 +95,76 @@ int main(int argc, char *argv[]) {
   for(int i = 0; i < players; i++) {
     close(players_read_fds[i]); // Cerramos los pipes de escritura para los players
   }
-
-  for(int i = 0; i < views; i++) {
-    close(views_read_fds[i]);   // Cerramos los pipes de escritura para las vistas
-  }
   
-  while (wait(NULL) > 0) {printf("a\n");};
+  while (wait(NULL) > 0);
 
   exit(EXIT_SUCCESS);
+}
+
+void create_player(char *executable, int fd[2], char *height, char *width) {
+// Proceso hijo
+    close(fd[0]);         // No necesita leer del pipe
+    close(STDOUT_FILENO); // Cerramos stdout
+    dup(fd[1]);          // Redirigimos stdout al pipe
+    close(fd[1]);         // Cerramos pipe después de duplicar
+
+    char *new_argv[] = {executable, height, width, NULL};
+    char *new_envp[] = {NULL};
+
+    execve(executable, new_argv, new_envp);
+    perror("execve");
+    exit(EXIT_FAILURE);
+}
+
+void create_view(char *executable, char *height, char *width) {
+  pid_t pid = fork();
+  if (pid == -1) {
+    perror("fork");
+    exit(EXIT_FAILURE);
+  }
+  
+  if(pid == 0){
+    char *new_argv[] = {executable, height, width, NULL};
+    char *new_envp[] = {NULL};
+
+    execve(executable, new_argv, new_envp);
+    perror("execve");
+    exit(EXIT_FAILURE);
+  }
+}
+
+void parse_arguments(argument_t *arguments, int argc, char * argv[]) {
+  int i = 0;
+  while(i <  argc) { 
+    if(!strcmp(argv[i], "-h")) {
+      i++;
+      if(atoi(argv[i]) < MIN_HEIGHT) {
+        fprintf(stderr, "Error: El valor mínimo para el GORDO de la pantalla es %d\n", 
+                  MIN_HEIGHT);
+        exit(EXIT_FAILURE);
+      }
+      strcpy(arguments->height, argv[i]);
+      i++;
+    } else if(!strcmp(argv[i], "-w")) {
+      i++;
+      if(atoi(argv[i]) < MIN_WIDTH) {
+        fprintf(stderr, "Error: El valor mínimo para el ancho de la pantalla es %d\n", 
+                  MIN_WIDTH);
+        exit(EXIT_FAILURE);
+      }
+      strcpy(arguments->width, argv[i]);
+      i++;
+    } else if(!strcmp(argv[i], "-d")) {
+      i++;
+      arguments->delay = atoi(argv[i]);
+    } else if(!strcmp(argv[i], "-t")) {
+      i++;
+      arguments->timeout = atoi(argv[i]);
+    } else if(!strcmp(argv[i], "-s")){
+      i++;
+      arguments->seed = atoi(argv[i]);
+    } else {
+      i++;
+    }
+  }
 }
