@@ -13,7 +13,7 @@
 
 #define MAX_PLAYERS 9
 #define MAX_VIEWS 1
-
+#define INITIAL_FD_COUNT 3
 #define MIN_WIDTH 10
 #define MIN_HEIGHT 10
 #define MAX_DIGITS 3
@@ -73,7 +73,14 @@ void create_player(char *executable, int fd[2], char *height, char *width) {
 
     if (pid == 0) {
         // Proceso hijo
-        close(fd[0]);          // No necesita leer del pipe
+        int i = fd[0];
+        while(i >= INITIAL_FD_COUNT){
+          close(i);
+          i--;
+        }                     // No necesita leer del pipe
+        close(STDOUT_FILENO); // Cerramos stdout
+        dup(fd[1]);           // Redirigimos stdout al pipe
+        close(fd[1]);         // Cerramos pipe después de duplicar
         close(STDOUT_FILENO);  // Cerramos stdout
         dup(fd[1]);            // Redirigimos stdout al pipe
         close(fd[1]);          // Cerramos pipe después de duplicar
