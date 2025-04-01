@@ -1,7 +1,7 @@
 # Variables
 CC = gcc
 CFLAGS = -Wall -Werror -g
-LDFLAGS = -lrt -lpthread
+LDFLAGS = -lrt -lpthread -lm
 SRC_DIR = .
 BIN_DIR = ../bin
 SOURCES = $(wildcard $(SRC_DIR)/*.c)

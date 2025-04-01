@@ -26,7 +26,7 @@ int main(int argc, char *argv[]) {
     game_sync_t *sync = get_sync();
 
     while (!board->game_has_finished) {
-        int rand_num = rand() % CANT_MOVES;
+        int rand_num = RIGHT;
 
         sem_wait(&sync->access_queue);
         sem_wait(&sync->count_access);

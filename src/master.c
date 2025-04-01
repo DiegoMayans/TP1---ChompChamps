@@ -1,11 +1,14 @@
 // Prototipo de master
 // Modo de uso ./master -p ./player1 ./player2 ... -v ./view
 
+#include <math.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/select.h>
 #include <sys/wait.h>
+#include <time.h>
 #include <unistd.h>
 
 #include "../includes/defs.h"
@@ -17,6 +20,7 @@
 #define MIN_WIDTH 10
 #define MIN_HEIGHT 10
 #define MAX_DIGITS 3
+#define NON_VALID_MOVES_TIME 10  // 10 segundos
 
 typedef struct {
     char height[MAX_DIGITS], width[MAX_DIGITS];
@@ -32,6 +36,9 @@ int parse_childs(int argc, char *argv[], argument_t *arguments, int players_read
 void validate_arguments(int flag_players, int players, int views);
 void init_board(game_board_t *game_board, int width, int height, int players_count);
 void init_sync(game_sync_t *game_sync);
+void initialize_player(player_t *player, pid_t pid);
+void initialize_player_positions(game_board_t *game_board, int width, int height, int players_count);
+int is_valid_position(int x, int y, player_t players_list[], int count, int min_dist);
 
 int main(int argc, char *argv[]) {
     // Se crean las dos zonas de memoria compartida
@@ -44,7 +51,6 @@ int main(int argc, char *argv[]) {
 
     game_board_t *game_board = (game_board_t *)createSHM(
         GAME_STATE_PATH, sizeof(game_board_t) + sizeof(int) * atoi(arguments.width) * atoi(arguments.height));
-    (void)game_board;
     game_sync_t *game_sync = (game_sync_t *)createSHM(GAME_SYNC_PATH, sizeof(game_sync_t));
     (void)game_sync;
 
@@ -55,6 +61,71 @@ int main(int argc, char *argv[]) {
     // Primero inicializamos las memorias compartidas
     init_board(game_board, atoi(arguments.width), atoi(arguments.height), players_count);
     init_sync(game_sync);
+
+    // Con todo inicializado, se procede a ejecutar el juego
+    // Procedimiento: Los jugadores desde que se forkean ya estan mandando solicitudes de movimiento
+    // La vista esta suspendida por el semaforo print_needed
+    // Lo primero que va a hacer el master es decirle a la vista que imprima
+    // Luego empezara a leer solicitudes de movimiento, validando cada una y realizandola si es valida
+    // Luego de cada movimiento valido el juego revisa si ocurrio alguna de las siguientes tres cosas:
+    // 1. Algun jugador se quedo sin movimientos validos
+    // 2. El juego termino por que no ocurrio un movimiento valido durante X tiempo
+    // 3. El juego termino por que ningun jugador tiene movimientos validos
+    // timeout de 10 segundos
+    struct timeval timeout;
+    timeout.tv_sec = 10;
+    fd_set read_fds;  // struct que contiene los fd que se van a monitorear
+    int max_fd = 0;
+    int current_pipe = 0;
+    while (1) {
+        sleep(1);
+        sem_post(&game_sync->print_needed);  // Mandamos a imprimir
+        sem_wait(&game_sync->print_done);    // Esperamos a que termine de imprimir
+        sleep(1);
+
+        // Ahora el master va a leer las solicitudes de movimiento
+        // Tenemos los pipes donde escribe cada player en players_read_fds
+        // Vamos a leer de cada uno de esos pipes usando select y siguiendo un procedimiento round robin
+        // select() monitorea varios fd y hace que el master espere a que uno o mas se vuelvan READY.
+        // Un fd esta READY si se puede realizar una operacion I/O de inmediato (sin bloquear).
+        FD_ZERO(&read_fds);                        // Inicializa el set de fd
+        for (int i = 0; i < players_count; i++) {  // Agrego los fds de los players al set
+            FD_SET(players_read_fds[i], &read_fds);
+            max_fd = players_read_fds[i] > max_fd ? players_read_fds[i] : max_fd;
+        }
+
+        int ready;
+        if ((ready = select(max_fd + 1, &read_fds, NULL, NULL, &timeout)) ==
+            0) {  // select requiere pasar el max_fd + 1
+            // Pasaron 10 segundos sin que un jugador se mueva
+            printf("No se recibieron movimientos validos en 10 segundos\n");
+        } else if (ready < 0) {
+            perror("select");
+            exit(EXIT_FAILURE);
+        }
+        // Si llegamos aca es por que algun jugador se movio
+
+        // PROBLEMA: move es siempre 1 y bytes es siempre 0. No se esta leyendo bien el movimiento. 
+        // Por alguna razon FD_ISSET retorna siempre 1 para todos los fd que estan en select
+        // Esto puede significar que todos los pipes se cerraron del lado de escritura
+        char move = 1;
+        int i;
+        for (i = 0; i < players_count; i++) {
+            int index = (current_pipe + i) % players_count;  // Ciclo circular
+            if (FD_ISSET(players_read_fds[index], &read_fds)) {
+                // Leer el movimiento del jugador (es 1 char)
+                int bytes;
+                if ((bytes = read(players_read_fds[index], &move, sizeof(char))) < 0) {
+                    perror("read");
+                    exit(EXIT_FAILURE);
+                }
+                printf("Movimiento recibido: %d, del jugador %d, bytes: %d\n", move, i, bytes);
+
+                current_pipe = (index + 1) % players_count;  // Avanzar round robin
+                break;
+            }
+        }
+    }
 
     for (int i = 0; i < players_count; i++) {
         close(players_read_fds[i]);  // Cerramos los pipes de escritura para los
@@ -97,40 +168,24 @@ void init_sync(game_sync_t *game_sync) {
     game_sync->players_reading_count = 0;
 }
 
-void initialize_player(player_t *player, pid_t pid) {
-    player->score = 0;
-    player->invalid_move_req_count = 0;
-    player->move_req_count = 0;
-    player->x = 0;
-    player->y = 0;
-    player->has_valid_moves = true;
-    player->pid = pid;
-}
-
 void initialize_player_positions(game_board_t *game_board, int width, int height, int players_count) {
-    // Estrategia: Se divide el tablero en celdas de igual tamaño. Se asigna una celda al azar a cada jugador.
-    // Las celdas son lo suficientemente grandes como para que si dos jugadores tienen celdas contiguas 
-    // sigan estando lo suficientemente espaciados.
+    srand(time(NULL));
 
-    int rows = (int) sqrt(players_count);
-    int cols = (players_count + rows - 1) / rows;  
-    int cell_width = width / cols;                 
-    int cell_height = height / rows;
+    int min_dist = (int)sqrt((width * height) / players_count);  // + area -> + dist | + players -> - dist
+    if (min_dist < 1) min_dist = 1;                              // Asegurar mínimo 1
 
-    int total_cells = rows * cols;
-    int cell_indices[total_cells]; // Arreglo con los índices de las celdas
-    for (int i = 0; i < total_cells; i++) {
-        cell_indices[i] = i;
+    for (int i = 0; i < players_count; i++) {
+        int x, y;
+        do {
+            x = rand() % width;
+            y = rand() % height;
+        } while (!is_valid_position(x, y, game_board->players_list, i, min_dist));
+
+        game_board->players_list[i].x = x;
+        game_board->players_list[i].y = y;
+
+        game_board->board[(y * width) + x] = -i;
     }
-
-    // Se mezclan los índices de las celdas
-    for (int i = 0; i < total_cells; i++) {
-        int j = rand() % total_cells;
-        int temp = cell_indices[i];
-        cell_indices[i] = cell_indices[j];
-        cell_indices[j] = temp;
-    }// SEGUIR
-
 }
 
 /* AUXILIARY FUNCTIONS */
@@ -278,4 +333,25 @@ void validate_arguments(int flag_players, int players, int views) {
         fprintf(stderr, "Error: No se especificaron vistas\n");
         exit(EXIT_FAILURE);
     }
+}
+
+void initialize_player(player_t *player, pid_t pid) {
+    player->score = 0;
+    player->invalid_move_req_count = 0;
+    player->move_req_count = 0;
+    player->x = 0;
+    player->y = 0;
+    player->has_valid_moves = true;
+    player->pid = pid;
+}
+
+int is_valid_position(int x, int y, player_t players_list[], int count, int min_dist) {
+    for (int i = 0; i < count; i++) {
+        int dx = players_list[i].x - x;
+        int dy = players_list[i].y - y;
+        if (sqrt(dx * dx + dy * dy) < min_dist) {
+            return 0;  // Demasiado cerca de otro jugador
+        }
+    }
+    return 1;  // Posición válida
 }
