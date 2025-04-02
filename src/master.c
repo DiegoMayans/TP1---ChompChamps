@@ -105,13 +105,11 @@ int main(int argc, char *argv[]) {
         }
         // Si llegamos aca es por que algun jugador se movio
 
-        // PROBLEMA: move es siempre 1 y bytes es siempre 0. No se esta leyendo bien el movimiento. 
-        // Por alguna razon FD_ISSET retorna siempre 1 para todos los fd que estan en select
-        // Esto puede significar que todos los pipes se cerraron del lado de escritura
-        char move = 1;
-        int i;
-        for (i = 0; i < players_count; i++) {
+        char move;
+        int i = 0;
+        for (; i < players_count; i++) {
             int index = (current_pipe + i) % players_count;  // Ciclo circular
+            
             if (FD_ISSET(players_read_fds[index], &read_fds)) {
                 // Leer el movimiento del jugador (es 1 char)
                 int bytes;
@@ -119,12 +117,22 @@ int main(int argc, char *argv[]) {
                     perror("read");
                     exit(EXIT_FAILURE);
                 }
-                printf("Movimiento recibido: %d, del jugador %d, bytes: %d\n", move, i, bytes);
+                printf("Movimiento recibido: %d, del jugador %d, bytes: %d\n", move, index, bytes);
 
                 current_pipe = (index + 1) % players_count;  // Avanzar round robin
                 break;
             }
         }
+
+        // Tenemos el movimiento, ahora lo validamos
+
+        /* VALIDACIONES */
+        
+        // Si es valido lo escribimos y hacemos todos los chequeos
+
+        /* ESCRITURA*/
+
+        /* CHEQUEOS */
     }
 
     for (int i = 0; i < players_count; i++) {
@@ -204,9 +212,6 @@ pid_t create_player(char *executable, int fd[2], char *height, char *width) {
             close(i);
             i--;
         }  // No necesita leer del pipe
-        close(STDOUT_FILENO);  // Cerramos stdout
-        dup(fd[1]);            // Redirigimos stdout al pipe
-        close(fd[1]);          // Cerramos pipe después de duplicar
         close(STDOUT_FILENO);  // Cerramos stdout
         dup(fd[1]);            // Redirigimos stdout al pipe
         close(fd[1]);          // Cerramos pipe después de duplicar
