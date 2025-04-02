@@ -17,4 +17,7 @@ typedef enum {
     UP_LEFT = 7
 } direction_t;
 
+#define MIN_MOVE UP
+#define MAX_MOVE UP_LEFT
+
 #endif

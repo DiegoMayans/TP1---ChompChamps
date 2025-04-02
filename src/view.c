@@ -91,9 +91,20 @@ void print_winner(game_board_t *board) {
     int max_score = -1;
     int winner = -1;
     for (int i = 0; i < board->player_count; i++) {
-        if ((int)board->players_list[i].score > -1) {
+        int player_score = board->players_list[i].score;
+        if (player_score > max_score) {
             max_score = board->players_list[i].score;
             winner = i;
+        } else if (player_score == max_score) {
+            if (board->players_list[i].move_req_count < board->players_list[winner].move_req_count) {
+                winner = i;
+            } else if (board->players_list[i].move_req_count == board->players_list[winner].move_req_count) {
+                if (board->players_list[i].invalid_move_req_count < board->players_list[winner].invalid_move_req_count) {
+                    winner = i;
+                } else if (board->players_list[i].invalid_move_req_count == board->players_list[winner].invalid_move_req_count) {
+                    winner = -1; // TODO: Manejar este caso
+                }
+            }
         }
     }
 

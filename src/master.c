@@ -39,6 +39,10 @@ void init_sync(game_sync_t *game_sync);
 void initialize_player(player_t *player, pid_t pid);
 void initialize_player_positions(game_board_t *game_board, int width, int height, int players_count);
 int is_valid_position(int x, int y, player_t players_list[], int count, int min_dist);
+int is_valid_move(game_board_t *game_board, char move, int player_index);
+void set_coordinates(int *x, int *y, direction_t move);
+void update_player(game_board_t *game_board, direction_t move, int player_index);
+int has_valid_moves(game_board_t *game_board, int player_index);
 
 int main(int argc, char *argv[]) {
     // Se crean las dos zonas de memoria compartida
@@ -72,16 +76,20 @@ int main(int argc, char *argv[]) {
     // 2. El juego termino por que no ocurrio un movimiento valido durante X tiempo
     // 3. El juego termino por que ningun jugador tiene movimientos validos
     // timeout de 10 segundos
-    struct timeval timeout;
-    timeout.tv_sec = 10;
     fd_set read_fds;  // struct que contiene los fd que se van a monitorear
     int max_fd = 0;
     int current_pipe = 0;
+    int players_finished = 0;
+
+    time_t last_valid_move_time;
+    time(&last_valid_move_time);
     while (1) {
-        sleep(1);
         sem_post(&game_sync->print_needed);  // Mandamos a imprimir
         sem_wait(&game_sync->print_done);    // Esperamos a que termine de imprimir
-        sleep(1);
+
+        if (game_board->game_has_finished) {
+            break;
+        }
 
         // Ahora el master va a leer las solicitudes de movimiento
         // Tenemos los pipes donde escribe cada player en players_read_fds
@@ -95,10 +103,9 @@ int main(int argc, char *argv[]) {
         }
 
         int ready;
-        if ((ready = select(max_fd + 1, &read_fds, NULL, NULL, &timeout)) ==
-            0) {  // select requiere pasar el max_fd + 1
+        if ((ready = select(max_fd + 1, &read_fds, NULL, NULL, NULL)) == 0) {  // select requiere pasar el max_fd + 1
             // Pasaron 10 segundos sin que un jugador se mueva
-            printf("No se recibieron movimientos validos en 10 segundos\n");
+            printf("No se recibieron movimientos en 10 segundos\n");
         } else if (ready < 0) {
             perror("select");
             exit(EXIT_FAILURE);
@@ -106,10 +113,10 @@ int main(int argc, char *argv[]) {
         // Si llegamos aca es por que algun jugador se movio
 
         char move;
-        int i = 0;
-        for (; i < players_count; i++) {
-            int index = (current_pipe + i) % players_count;  // Ciclo circular
-            
+        int offset = 0, index;
+        for (; offset < players_count; offset++) {
+            index = (current_pipe + offset) % players_count;  // Ciclo circular
+
             if (FD_ISSET(players_read_fds[index], &read_fds)) {
                 // Leer el movimiento del jugador (es 1 char)
                 int bytes;
@@ -126,13 +133,46 @@ int main(int argc, char *argv[]) {
 
         // Tenemos el movimiento, ahora lo validamos
 
-        /* VALIDACIONES */
-        
+        int is_valid_move_flag = is_valid_move(game_board, move, index);
+
         // Si es valido lo escribimos y hacemos todos los chequeos
 
-        /* ESCRITURA*/
+        sem_wait(&(game_sync->access_queue));  // Espera a que no haya lectores
 
-        /* CHEQUEOS */
+        sem_wait(&(game_sync->game_state_access));  // Toma el recurso
+
+        sem_post(&(game_sync->access_queue));  // Libera la cola
+
+        // INICIO SECCION ESCRITURA
+
+        if (!is_valid_move_flag) {
+            game_board->players_list[index].invalid_move_req_count++;
+        } else {
+            printf("updateing player with index: %d\n", index);
+            update_player(game_board, move, index);
+            time(&last_valid_move_time);  // Reseteamos el timer
+
+            if (!has_valid_moves(game_board, index)) {
+                game_board->players_list[index].has_valid_moves = false;
+                players_finished++;
+            }
+
+            // Chequear si el juego termino por que todos los jugadores se quedaron sin movimientos validos
+            if (players_finished == players_count) {
+                game_board->game_has_finished = true;
+            }
+        }
+
+        printf("time elapsed: %ld\n", time(NULL) - last_valid_move_time);
+
+        // Chequear si el juego termino por que no ocurrio un movimiento valido en 10 segundos
+        if (time(NULL) - last_valid_move_time > NON_VALID_MOVES_TIME) {
+            game_board->game_has_finished = true;
+        }
+
+        // FIN SECCION ESCRITURA
+
+        sem_post(&(game_sync->game_state_access));  // Libera el recurso
     }
 
     for (int i = 0; i < players_count; i++) {
@@ -194,6 +234,59 @@ void initialize_player_positions(game_board_t *game_board, int width, int height
 
         game_board->board[(y * width) + x] = -i;
     }
+}
+
+int is_valid_move(game_board_t *game_board, char move, int player_index) {
+    if (move < MIN_MOVE || move > MAX_MOVE) {
+        return 0;
+    }
+
+    int x = game_board->players_list[player_index].x;
+    int y = game_board->players_list[player_index].y;
+    set_coordinates(&x, &y, move);
+
+    // Chequear que este dentro de los limites del tablero
+    if (x < 0 || x >= game_board->width || y < 0 || y >= game_board->height) {
+        return 0;
+    }
+
+    // Chequear que no haya otro jugador ahi
+    if (game_board->board[x + y * game_board->width] < 0) {
+        return 0;
+    }
+
+    return 1;
+}
+
+void update_player(game_board_t *game_board, direction_t move, int player_index) {
+    int x = game_board->players_list[player_index].x;
+    int y = game_board->players_list[player_index].y;
+    set_coordinates(&x, &y, move);
+
+    int cell_score = game_board->board[x + y * game_board->width];
+    game_board->board[x + y * game_board->width] = -player_index;
+
+    game_board->players_list[player_index].move_req_count++;     // Aumentar contador de movimientos validos
+    game_board->players_list[player_index].score += cell_score;  // Aumentar score
+    game_board->players_list[player_index].x = x;
+    game_board->players_list[player_index].y = y;
+}
+
+int has_valid_moves(game_board_t *game_board, int player_index) {
+    int x = game_board->players_list[player_index].x;
+    int y = game_board->players_list[player_index].y;
+
+    for (int i = 0; i < 8; i++) {
+        int new_x = x;
+        int new_y = y;
+        set_coordinates(&new_x, &new_y, i);
+
+        if (new_x >= 0 && new_y >= 0 && new_x < game_board->width && new_y < game_board->height &&
+            game_board->board[new_x + new_y * game_board->width] >= 0) {
+            return 1;
+        }
+    }
+    return 0;
 }
 
 /* AUXILIARY FUNCTIONS */
@@ -359,4 +452,37 @@ int is_valid_position(int x, int y, player_t players_list[], int count, int min_
         }
     }
     return 1;  // Posición válida
+}
+
+void set_coordinates(int *x, int *y, direction_t move) {
+    switch (move) {
+        case UP:
+            (*y)--;
+            break;
+        case UP_RIGHT:
+            (*x)++;
+            (*y)--;
+            break;
+        case RIGHT:
+            (*x)++;
+            break;
+        case DOWN_RIGHT:
+            (*x)++;
+            (*y)++;
+            break;
+        case DOWN:
+            (*y)++;
+            break;
+        case DOWN_LEFT:
+            (*x)--;
+            (*y)++;
+            break;
+        case LEFT:
+            (*x)--;
+            break;
+        case UP_LEFT:
+            (*x)--;
+            (*y)--;
+            break;
+    }
 }
