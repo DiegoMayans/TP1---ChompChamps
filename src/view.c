@@ -99,10 +99,12 @@ void print_winner(game_board_t *board) {
             if (board->players_list[i].move_req_count < board->players_list[winner].move_req_count) {
                 winner = i;
             } else if (board->players_list[i].move_req_count == board->players_list[winner].move_req_count) {
-                if (board->players_list[i].invalid_move_req_count < board->players_list[winner].invalid_move_req_count) {
+                if (board->players_list[i].invalid_move_req_count <
+                    board->players_list[winner].invalid_move_req_count) {
                     winner = i;
-                } else if (board->players_list[i].invalid_move_req_count == board->players_list[winner].invalid_move_req_count) {
-                    winner = -1; // TODO: Manejar este caso
+                } else if (board->players_list[i].invalid_move_req_count ==
+                           board->players_list[winner].invalid_move_req_count) {
+                    winner = -1;  // TODO: Manejar este caso
                 }
             }
         }

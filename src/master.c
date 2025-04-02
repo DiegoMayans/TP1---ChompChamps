@@ -104,8 +104,7 @@ int main(int argc, char *argv[]) {
 
         int ready;
         if ((ready = select(max_fd + 1, &read_fds, NULL, NULL, NULL)) == 0) {  // select requiere pasar el max_fd + 1
-            // Pasaron 10 segundos sin que un jugador se mueva
-            printf("No se recibieron movimientos en 10 segundos\n");
+            // Aca no deberiamos llegar nunca porque no pasamos timeout
         } else if (ready < 0) {
             perror("select");
             exit(EXIT_FAILURE);
@@ -148,7 +147,6 @@ int main(int argc, char *argv[]) {
         if (!is_valid_move_flag) {
             game_board->players_list[index].invalid_move_req_count++;
         } else {
-            printf("updateing player with index: %d\n", index);
             update_player(game_board, move, index);
             time(&last_valid_move_time);  // Reseteamos el timer
 
@@ -180,7 +178,8 @@ int main(int argc, char *argv[]) {
                                      // players
     }
 
-    while (wait(NULL) > 0);
+    while (wait(NULL) > 0)
+        ;
 
     exit(EXIT_SUCCESS);
 }  // END MAIN
@@ -304,7 +303,7 @@ pid_t create_player(char *executable, int fd[2], char *height, char *width) {
         while (i >= INITIAL_FD_COUNT) {
             close(i);
             i--;
-        }  // No necesita leer del pipe
+        }                      // No necesita leer del pipe
         close(STDOUT_FILENO);  // Cerramos stdout
         dup(fd[1]);            // Redirigimos stdout al pipe
         close(fd[1]);          // Cerramos pipe después de duplicar
@@ -343,7 +342,7 @@ void parse_arguments(argument_t *arguments, int argc, char *argv[]) {
         if (!strcmp(argv[i], "-h")) {
             i++;
             if (atoi(argv[i]) < MIN_HEIGHT) {
-                fprintf(stderr, "Error: El valor mínimo para el GORDO de la pantalla es %d\n", MIN_HEIGHT);
+                fprintf(stderr, "Error: El valor mínimo para el alto de la pantalla es %d\n", MIN_HEIGHT);
                 exit(EXIT_FAILURE);
             }
             strcpy(arguments->height, argv[i]);
