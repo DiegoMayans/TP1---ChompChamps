@@ -198,10 +198,6 @@ void init_board(game_board_t *game_board, int width, int height, int players_cou
     }
 
     // Inicializar las posiciones x e y de los jugadores
-    for (int i = 0; i < players_count; i++) {
-        game_board->players_list[i].x = rand() % width;
-        game_board->players_list[i].y = rand() % height;
-    }
 
     initialize_player_positions(game_board, width, height, players_count);
 }

@@ -298,3 +298,11 @@ make
 ./ChompChampsARM -p bin/player -v bin/view 
 make
 ./ChompChampsARM -p bin/player -v bin/view 
+cd root
+make
+clear
+./three-players-test.sh 
+./nine-players-test.sh 
+./nine-players-test.sh 
+./nine-players-test.sh 
+clear
