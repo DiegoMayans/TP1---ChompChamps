@@ -12,9 +12,7 @@ const int head_colors[] = {208, 201, 190, 87, 142, 57, 28, 94, 220};
 
 void print_board(game_board_t *board_state, int alto, int ancho);
 
-void print_stats(game_board_t *board_state);
-
-void print_winner(game_board_t *board);
+void print_winner_and_stats(game_board_t *board);
 
 void clear_screen();
 

@@ -43,12 +43,11 @@ int main(int argc, char *argv[]) {
 
         clear_screen();
         print_board(board_state, height, width);
-        print_stats(board_state);
 
         sem_post(sem_B);
     }
 
-    print_winner(board_state);
+    print_winner_and_stats(board_state);
 
     return 0;
 }
@@ -74,19 +73,9 @@ void print_board(game_board_t *board_state, int height, int width) {
 
 void clear_screen() { printf("\033[H\033[2J\033[3J"); }
 
-void print_stats(game_board_t *board_state) {
-    printf("\n==== Estadísticas de Jugadores ====\n");
-    for (int i = 0; i < board_state->player_count; i++) {
-        printf("\033[38;5;%dm%s %d:\033[0m\n", colors[i], board_state->players_list[i].player_name, i);
-        printf("  - Posición: (%d, %d)\n", board_state->players_list[i].x, board_state->players_list[i].y);
-        printf("  - Puntaje: %d\n", board_state->players_list[i].score);
-        printf("  - Movimientos validos: %d\n", board_state->players_list[i].move_req_count);
-        printf("  - Movimientos invalidos: %d\n", board_state->players_list[i].invalid_move_req_count);
-        printf("---------------------------\n");
-    }
-}
 
-void print_winner(game_board_t *board) {
+
+void print_winner_and_stats(game_board_t *board) {
     clear_screen();
     int max_score = -1;
     int winner = -1;
@@ -104,16 +93,79 @@ void print_winner(game_board_t *board) {
                     winner = i;
                 } else if (board->players_list[i].invalid_move_req_count ==
                            board->players_list[winner].invalid_move_req_count) {
-                    winner = -1;  // TODO: Manejar este caso
+                    winner = -1; 
                 }
             }
         }
     }
 
-    printf("\n");
-    printf("========================================================\n");
-    printf("       🎉🎊   CONGRATULATIONS, PLAYER %d!   🎊🎉       \n", winner);
-    printf("  🏆 You've won the game with a score of %d points. 🏆\n", max_score);
-    printf("========================================================\n");
-    printf("\n");
+    if (winner != -1) {
+        printf("\n");
+        printf("========================================================\n");
+        printf("             FELICIDADES, JUGADOR %d!            \n", winner);
+        printf("          Ganaste el juego con %d puntos.        \n", max_score);
+        printf("========================================================\n");
+        printf("\n");
+    } else {
+        printf("\n");
+        printf("========================================================\n");
+        printf("               ¡EMPATE ENTRE JUGADORES!            \n");
+        printf("               empataron con %d puntos.         \n", max_score);
+        printf("========================================================\n");
+        printf("\n");
+    }
+
+    int ordenados[board->player_count];
+    int total_players = board->player_count;
+
+    // Inicializar índices
+    for (int i = 0; i < total_players; i++) {
+        ordenados[i] = i;
+    }
+
+    // Ordenamiento con múltiples criterios
+    for (int i = 0; i < total_players - 1; i++) {
+        for (int j = 0; j < total_players - i - 1; j++) {
+            int a = ordenados[j];
+            int b = ordenados[j + 1];
+
+            player_t *pa = &board->players_list[a];
+            player_t *pb = &board->players_list[b];
+
+            // Comparación múltiple
+            bool swap = false;
+
+            if (pa->score < pb->score) {
+                swap = true;
+            } else if (pa->score == pb->score) {
+                if (pa->move_req_count > pb->move_req_count) {
+                    swap = true;
+                } else if (pa->move_req_count == pb->move_req_count) {
+                    if (pa->invalid_move_req_count > pb->invalid_move_req_count) {
+                        swap = true;
+                    }
+                }
+            }
+
+            if (swap) {
+                int tmp = ordenados[j];
+                ordenados[j] = ordenados[j + 1];
+                ordenados[j + 1] = tmp;
+            }
+        }   
+    }
+
+// Mostrar el ranking final
+    printf("\n=============== Estadisticas de los jugadores ===============\n");
+    for (int i = 0; i < total_players; i++) {
+        int idx = ordenados[i];
+        printf(" %d° Jugador %d — %2d pts | Válidos: %d | Inválidos: %d\n",
+            i + 1, idx,
+            board->players_list[idx].score,
+            board->players_list[idx].move_req_count,
+            board->players_list[idx].invalid_move_req_count);
+    }
+    printf("==============================================================\n\n");
+
+
 }
