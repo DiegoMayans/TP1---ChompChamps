@@ -1,7 +1,6 @@
 #include "../includes/master.h"
 
 int main(int argc, char *argv[]) {
-    printf("EMPIEZA MASTER\n");
     int players_read_fds[MAX_PLAYERS];
 
     argument_t arguments = {"10", "10", 200, 10, 0};
@@ -17,10 +16,8 @@ int main(int argc, char *argv[]) {
 
     int players_count = parse_childs(argc, argv, &arguments, players_read_fds, game_board->players_list);
 
-    printf("ANTES DE INICIALIZAR\n");
     srand(arguments.seed);
     init_board(game_board, atoi(arguments.width), atoi(arguments.height), players_count);
-    printf("ANTES DE EMPEZAR\n");
     init_sync(game_sync);
 
     fd_set read_fds;
@@ -282,7 +279,6 @@ void init_board(game_board_t *game_board, int width, int height, int players_cou
     for (int i = 0; i < width * height; i++) {
         game_board->board[i] = rand() % 9 + 1;
     }
-    printf("A\n");
 
     initialize_player_positions(game_board, width, height, players_count);
 }
