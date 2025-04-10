@@ -12,7 +12,7 @@
 #include <unistd.h>
 
 #include "../includes/defs.h"
-#include "../includes/shm.h"
+#include "../includes/shm_adt.h"
 
 typedef struct {
     char height[MAX_DIGITS], width[MAX_DIGITS];
@@ -35,4 +35,3 @@ int has_valid_moves(game_board_t *game_board, int player_index);
 void error_exit(const char *msg, int condition);
 
 #endif
-

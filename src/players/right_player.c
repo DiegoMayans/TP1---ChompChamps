@@ -1,7 +1,7 @@
 #include <unistd.h>
 
 #include "../../includes/defs.h"
-#include "../../includes/shm.h"
+#include "../../includes/shm_adt.h"
 #include "stdint.h"
 #include "stdio.h"
 #include "stdlib.h"
@@ -22,9 +22,10 @@ int main(int argc, char *argv[]) {
         exit(EXIT_FAILURE);
     }
 
-    game_board_t *board = get_board_state(height * width);
-    game_sync_t *sync = get_sync();
-
+    shm_adt shm_board = shm_open_readonly(GAME_STATE_PATH, sizeof(game_board_t) + sizeof(int) * height * width);
+    game_board_t *board = shm_get_game_board(shm_board);
+    shm_adt shm_sync = shm_open_readwrite(GAME_SYNC_PATH, sizeof(game_sync_t));
+    game_sync_t *sync = shm_get_game_sync(shm_sync);
     while (!board->game_has_finished) {
         int rand_num = RIGHT;
 
@@ -49,6 +50,9 @@ int main(int argc, char *argv[]) {
 
         move(rand_num);
     }
+
+    shm_close(shm_board);
+    shm_close(shm_sync);
     return 0;
 }
 

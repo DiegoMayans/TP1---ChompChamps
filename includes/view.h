@@ -1,10 +1,8 @@
 #ifndef VIEW_H
 #define VIEW_H
 
-#include "defs.h"
-#include "shm.h"
-#include "stdio.h"
-#include "stdlib.h"
+#include "../includes/shm_adt.h"
+
 
 const int colors[] = {210, 199, 192, 85, 144, 55, 30, 96, 222};
 

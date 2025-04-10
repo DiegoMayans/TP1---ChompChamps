@@ -1,8 +1,10 @@
-#ifndef SHM_H
-#define SHM_H
+#ifndef SHM_ADT_C
+#define SHM_ADT_C
 
 #include <semaphore.h>
 #include <stdbool.h>
+
+typedef struct shm_cdt *shm_adt;
 
 typedef struct {
     char player_name[16];                 // Nombre del jugador
@@ -38,10 +40,11 @@ typedef struct {
     unsigned int players_reading_count;  // Cantidad de jugadores leyendo el estado
 } game_sync_t;
 
-void *createSHM(char *name, size_t size);
-
-game_board_t *get_board_state(size_t size_tablero);
-
-game_sync_t *get_sync();
+shm_adt shm_create(const char *name, size_t size);
+shm_adt shm_open_readonly(const char *name, size_t size);
+shm_adt shm_open_readwrite(const char *name, size_t size);
+game_board_t *shm_get_game_board(shm_adt shm);
+game_sync_t *shm_get_game_sync(shm_adt shm);
+void shm_close(shm_adt shm);
 
 #endif

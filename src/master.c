@@ -1,20 +1,26 @@
 #include "../includes/master.h"
 
 int main(int argc, char *argv[]) {
-    int players_read_fds[MAX_PLAYERS]; 
+    printf("EMPIEZA MASTER\n");
+    int players_read_fds[MAX_PLAYERS];
 
     argument_t arguments = {"10", "10", 200, 10, 0};
 
     parse_arguments(&arguments, argc, argv);
 
-    game_board_t *game_board = (game_board_t *)createSHM(
-        GAME_STATE_PATH, sizeof(game_board_t) + sizeof(int) * atoi(arguments.width) * atoi(arguments.height));
-    game_sync_t *game_sync = (game_sync_t *)createSHM(GAME_SYNC_PATH, sizeof(game_sync_t));
+    shm_adt shm_board = shm_create(GAME_STATE_PATH,
+                                   sizeof(game_board_t) + sizeof(int) * atoi(arguments.width) * atoi(arguments.height));
+    game_board_t *game_board = shm_get_game_board(shm_board);
+
+    shm_adt shm_sync = shm_create(GAME_SYNC_PATH, sizeof(game_sync_t));
+    game_sync_t *game_sync = shm_get_game_sync(shm_sync);
 
     int players_count = parse_childs(argc, argv, &arguments, players_read_fds, game_board->players_list);
 
+    printf("ANTES DE INICIALIZAR\n");
     srand(arguments.seed);
     init_board(game_board, atoi(arguments.width), atoi(arguments.height), players_count);
+    printf("ANTES DE EMPEZAR\n");
     init_sync(game_sync);
 
     fd_set read_fds;
@@ -25,16 +31,16 @@ int main(int argc, char *argv[]) {
     time_t last_valid_move_time;
     time(&last_valid_move_time);
     while (true) {
-        sem_post(&game_sync->print_needed); 
-        sem_wait(&game_sync->print_done);  
+        sem_post(&game_sync->print_needed);
+        sem_wait(&game_sync->print_done);
         usleep(arguments.delay * 1000);
 
         if (game_board->game_has_finished) {
             break;
         }
 
-        FD_ZERO(&read_fds);                        
-        for (int i = 0; i < players_count; i++) {  
+        FD_ZERO(&read_fds);
+        for (int i = 0; i < players_count; i++) {
             FD_SET(players_read_fds[i], &read_fds);
             max_fd = players_read_fds[i] > max_fd ? players_read_fds[i] : max_fd;
         }
@@ -45,13 +51,13 @@ int main(int argc, char *argv[]) {
         char move;
         int offset = 0, index;
         for (; offset < players_count; offset++) {
-            index = (current_pipe + offset) % players_count; 
+            index = (current_pipe + offset) % players_count;
 
             if (FD_ISSET(players_read_fds[index], &read_fds)) {
                 int bytes = read(players_read_fds[index], &move, sizeof(char));
                 error_exit("read", bytes < 0);
 
-                current_pipe = (current_pipe + 1) % players_count;  
+                current_pipe = (current_pipe + 1) % players_count;
                 break;
             }
         }
@@ -69,7 +75,7 @@ int main(int argc, char *argv[]) {
             game_board->players_list[index].invalid_move_req_count++;
         } else {
             update_player(game_board, move, index);
-            time(&last_valid_move_time); 
+            time(&last_valid_move_time);
 
             if (!has_valid_moves(game_board, index)) {
                 game_board->players_list[index].has_valid_moves = false;
@@ -93,7 +99,11 @@ int main(int argc, char *argv[]) {
         close(players_read_fds[i]);
     }
 
-    while (wait(NULL) > 0);
+    while (wait(NULL) > 0)
+        ;
+
+    shm_close(shm_board);
+    shm_close(shm_sync);
 
     exit(EXIT_SUCCESS);
 }  // END MAIN
@@ -204,7 +214,7 @@ int parse_childs(int argc, char *argv[], argument_t *arguments, int players_read
     while (i < argc) {
         if (strcmp(argv[i], "-p") == 0) {
             i++;
-            while (i < argc && argv[i][0] != '-') {  
+            while (i < argc && argv[i][0] != '-') {
                 error_exit("Error: No se pueden tener mas de 9 jugadores", players_count >= MAX_PLAYERS);
 
                 int fd[2];
@@ -217,9 +227,9 @@ int parse_childs(int argc, char *argv[], argument_t *arguments, int players_read
 
                 i++;
             }
-        } else if (strcmp(argv[i], "-v") == 0) { 
+        } else if (strcmp(argv[i], "-v") == 0) {
             i++;
-            while (i < argc && argv[i][0] != '-') {  
+            while (i < argc && argv[i][0] != '-') {
                 error_exit("Error: No se pueden tener mas de 1 vista", views_count >= MAX_VIEWS);
 
                 create_process(argv[i], arguments->height, arguments->width, NULL, 0);
@@ -227,7 +237,7 @@ int parse_childs(int argc, char *argv[], argument_t *arguments, int players_read
                 i++;
             }
         } else {
-            i++;  
+            i++;
         }
     }
 
@@ -272,6 +282,7 @@ void init_board(game_board_t *game_board, int width, int height, int players_cou
     for (int i = 0; i < width * height; i++) {
         game_board->board[i] = rand() % 9 + 1;
     }
+    printf("A\n");
 
     initialize_player_positions(game_board, width, height, players_count);
 }
@@ -290,18 +301,22 @@ void initialize_player_positions(game_board_t *game_board, int width, int height
     if (min_dist < 1) min_dist = 1;
 
     for (int i = 0; i < players_count; i++) {
-        int x, y, is_valid_position;
+        int x, y, is_valid_position, loop_count = 0, min = min_dist;
         do {
             x = rand() % width;
             y = rand() % height;
 
             is_valid_position = 1;
-            for (int i = 0; i < players_count; i++) {
-                int dx = game_board->players_list[i].x - x;
-                int dy = game_board->players_list[i].y - y;
-                if (sqrt(dx * dx + dy * dy) < min_dist) {
-                    is_valid_position = 0; 
+            for (int j = 0; j < players_count && is_valid_position == 1; j++) {
+                int dx = game_board->players_list[j].x - x;
+                int dy = game_board->players_list[j].y - y;
+                if (sqrt(dx * dx + dy * dy) < min) {
+                    is_valid_position = 0;
                 }
+            }
+            if (++loop_count > 3 && min > 1) {
+                min--;
+                loop_count = 0;
             }
         } while (!is_valid_position);
 

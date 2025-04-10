@@ -1,13 +1,9 @@
 #include "../includes/view.h"
 
-#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 
 #include "../includes/defs.h"
-#include "../includes/shm.h"
-#include "math.h"
 
 int main(int argc, char *argv[]) {
     if (argc != 3) {
@@ -23,31 +19,27 @@ int main(int argc, char *argv[]) {
         exit(EXIT_FAILURE);
     }
 
-    game_board_t *board_state = get_board_state(height * width);
-    if (board_state == NULL) {
-        fprintf(stderr, "Error: No se pudo obtener el estado del tablero\n");
-        exit(EXIT_FAILURE);
-    }
-
-    game_sync_t *game_sync = get_sync();
-    if (game_sync == NULL) {
-        fprintf(stderr, "Error: No se pudo obtener la sincronización\n");
-        exit(EXIT_FAILURE);
-    }
+    shm_adt shm_board = shm_open_readonly(GAME_STATE_PATH, sizeof(game_board_t) + sizeof(int) * height * width);
+    game_board_t *game_board = shm_get_game_board(shm_board);
+    shm_adt shm_sync = shm_open_readwrite(GAME_SYNC_PATH, sizeof(game_sync_t));
+    game_sync_t *game_sync = shm_get_game_sync(shm_sync);
 
     sem_t *sem_A = &game_sync->print_needed;  // de aca sabe si hay cambios para imprimir
     sem_t *sem_B = &game_sync->print_done;
 
-    while (!board_state->game_has_finished) {
+    while (!game_board->game_has_finished) {
         sem_wait(sem_A);
 
         clear_screen();
-        print_board(board_state, height, width);
+        print_board(game_board, height, width);
 
         sem_post(sem_B);
     }
 
-    print_winner_and_stats(board_state);
+    print_winner_and_stats(game_board);
+
+    shm_close(shm_board);
+    shm_close(shm_sync);
 
     return 0;
 }
@@ -72,7 +64,6 @@ void print_board(game_board_t *board_state, int height, int width) {
 }
 
 void clear_screen() { printf("\033[H\033[2J\033[3J"); }
-
 
 void print_stats(game_board_t *board_state) {
     printf("\n==== Estadísticas de Jugadores ====\n");
@@ -104,7 +95,7 @@ void print_winner_and_stats(game_board_t *board) {
                     winner = i;
                 } else if (board->players_list[i].invalid_move_req_count ==
                            board->players_list[winner].invalid_move_req_count) {
-                    winner = -1; 
+                    winner = -1;
                 }
             }
         }
@@ -163,20 +154,15 @@ void print_winner_and_stats(game_board_t *board) {
                 ordenados[j] = ordenados[j + 1];
                 ordenados[j + 1] = tmp;
             }
-        }   
+        }
     }
 
-// Mostrar el ranking final
+    // Mostrar el ranking final
     printf("\n=============== Estadisticas de los jugadores ===============\n");
     for (int i = 0; i < total_players; i++) {
         int idx = ordenados[i];
-        printf(" %d° Jugador %d — %2d pts | Válidos: %d | Inválidos: %d\n",
-            i + 1, idx,
-            board->players_list[idx].score,
-            board->players_list[idx].move_req_count,
-            board->players_list[idx].invalid_move_req_count);
+        printf(" %d° Jugador %d — %2d pts | Válidos: %d | Inválidos: %d\n", i + 1, idx, board->players_list[idx].score,
+               board->players_list[idx].move_req_count, board->players_list[idx].invalid_move_req_count);
     }
     printf("==============================================================\n\n");
-
-
 }

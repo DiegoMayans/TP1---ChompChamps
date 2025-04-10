@@ -3,7 +3,9 @@
     "*.css": "tailwindcss",
     "shm.h": "c",
     "defs.h": "c",
-    "master.h": "c"
+    "master.h": "c",
+    "shm_adt.h": "c",
+    "view.h": "c"
   },
   "C_Cpp.errorSquiggles": "enabled"
 }
