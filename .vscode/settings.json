@@ -2,7 +2,8 @@
   "files.associations": {
     "*.css": "tailwindcss",
     "shm.h": "c",
-    "defs.h": "c"
+    "defs.h": "c",
+    "master.h": "c"
   },
   "C_Cpp.errorSquiggles": "enabled"
 }

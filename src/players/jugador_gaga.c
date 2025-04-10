@@ -1,7 +1,7 @@
 #include <unistd.h>
 
-#include "../includes/defs.h"
-#include "../includes/shm.h"
+#include "../../includes/defs.h"
+#include "../../includes/shm.h"
 #include "stdint.h"
 #include "stdio.h"
 #include "stdlib.h"
@@ -25,8 +25,15 @@ int main(int argc, char *argv[]) {
     game_board_t *board = get_board_state(height * width);
     game_sync_t *sync = get_sync();
 
+    char flag = 0;
     while (!board->game_has_finished) {
-        int rand_num = RIGHT;
+      flag = !flag;
+      char asd;
+        if (flag == 0) {
+          asd = RIGHT;
+        } else {
+          asd = LEFT;
+        }
 
         sem_wait(&sync->access_queue);
         sem_wait(&sync->count_access);
@@ -47,7 +54,7 @@ int main(int argc, char *argv[]) {
         }
         sem_post(&sync->count_access);
 
-        move(rand_num);
+        move(asd);
     }
     return 0;
 }

@@ -74,6 +74,17 @@ void print_board(game_board_t *board_state, int height, int width) {
 void clear_screen() { printf("\033[H\033[2J\033[3J"); }
 
 
+void print_stats(game_board_t *board_state) {
+    printf("\n==== Estadísticas de Jugadores ====\n");
+    for (int i = 0; i < board_state->player_count; i++) {
+        printf("\033[38;5;%dm%s %d:\033[0m\n", colors[i], board_state->players_list[i].player_name, i);
+        printf("  - Posición: (%d, %d)\n", board_state->players_list[i].x, board_state->players_list[i].y);
+        printf("  - Puntaje: %d\n", board_state->players_list[i].score);
+        printf("  - Movimientos validos: %d\n", board_state->players_list[i].move_req_count);
+        printf("  - Movimientos invalidos: %d\n", board_state->players_list[i].invalid_move_req_count);
+        printf("---------------------------\n");
+    }
+}
 
 void print_winner_and_stats(game_board_t *board) {
     clear_screen();

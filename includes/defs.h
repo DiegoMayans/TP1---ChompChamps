@@ -19,5 +19,13 @@ typedef enum {
 
 #define MIN_MOVE UP
 #define MAX_MOVE UP_LEFT
+#define CANT_DIRECTIONS 8
+
+#define MAX_PLAYERS 9
+#define MAX_VIEWS 1
+#define INITIAL_FD_COUNT 3
+#define MIN_WIDTH 10
+#define MIN_HEIGHT 10
+#define MAX_DIGITS 3
 
 #endif
