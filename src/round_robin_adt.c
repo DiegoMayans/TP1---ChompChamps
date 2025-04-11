@@ -6,8 +6,7 @@
 #include "../includes/round_robin_adt.h"
 
 struct requester_key {
-	//id >= 0
-	int id;
+	int id; //	>= 0
 };
 
 typedef struct {
@@ -25,12 +24,13 @@ struct round_robin_cdt {
 
 static struct round_robin_cdt round_robin = {0};
 
-static struct requester_key valid_id[MAX_REQUESTERS];
+static requester_id valid_id[MAX_REQUESTERS];
 
 round_robin_adt new_round_robin(requester_t requesters[], int cant_requesters) {
 	for(int i = 0; i < cant_requesters; i++) {
-		requesters[i].id = i;
-		valid_id[i].id = i;
+		struct requester_key key = {.id = i};
+		requesters[i].id = &key;
+		valid_id[i] = &key;
 	}
 	round_robin.requests_size = 0;
 	round_robin.cant_requesters = cant_requesters;
@@ -75,7 +75,7 @@ int push_request(round_robin_adt round_robin, requester_t requester) {
 	if(!belongs(round_robin, requester)) {
 		bool found = false;
 		for(int i = 0; i < round_robin->cant_requesters && !found; i++) {
-			if(requester.id == valid_id[i].id) {
+			if(requester.id->id == valid_id[i]->id) {
 				round_robin->priority_queue[round_robin->priority_current_size++] = requester;
 				found = true;
 			}
@@ -108,9 +108,9 @@ int push_request(round_robin_adt round_robin, requester_t requester) {
 	return EXIT_SUCCESS;
 }
 
-int pop_request(round_robin_adt round_robin) {
+requester_id pop_request(round_robin_adt round_robin) {
 	if(round_robin->requests_size <= 0) {
-		return -1;
+		return (requester_id)-1;
 	}
 	request_t toReturn = round_robin->requests_queue[0];
 
@@ -134,26 +134,4 @@ int pop_request(round_robin_adt round_robin) {
 	round_robin->priority_queue[round_robin->priority_current_size - 1] = toReturn.requester;
 
 	return toReturn.requester.id;
-}
-
-#define CANT 3
-
-int main(void) {
-	requester_t requesters[CANT];
-	requesters[0].name = "Diego"; requesters[1].name = "Mitch"; requesters[2].name = "Juampi";	
-
-	round_robin_adt robin_hood = new_round_robin(requesters, CANT);
-	push_request(robin_hood, requesters[0]);
-	push_request(robin_hood, requesters[0]);
-	push_request(robin_hood, requesters[0]);
-	push_request(robin_hood, requesters[2]);
-	for(int i = 0; i < 2; i++) {
-		printf("requests_amount: %d\nid: %d\tname: %s\n", robin_hood->requests_queue[i].requests_amount, robin_hood->requests_queue[i].requester.id, robin_hood->requests_queue[i].requester.name);
-	}
-	for(int i = 0; i < 5; i++) {
-		printf("pop: %d\n", pop_request(robin_hood));
-	}
-	for(int i = 0; i < 2; i++) {
-		printf("requests_amount: %d\nid: %d\tname: %s\n", robin_hood->requests_queue[i].requests_amount, robin_hood->requests_queue[i].requester.id, robin_hood->requests_queue[i].requester.name);
-	}
 }
