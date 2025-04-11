@@ -13,6 +13,7 @@
 
 #include "../includes/defs.h"
 #include "../includes/shm_adt.h"
+#include "../includes/round_robin_adt.h"
 
 typedef struct {
     char height[MAX_DIGITS], width[MAX_DIGITS];

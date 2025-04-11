@@ -108,30 +108,31 @@ int push_request(round_robin_adt round_robin, requester_t requester) {
 	return EXIT_SUCCESS;
 }
 
-requester_id pop_request(round_robin_adt round_robin) {
+requester_t pop_request(round_robin_adt round_robin) {
 	if(round_robin->requests_size <= 0) {
-		return (requester_id)-1;
+		requester_t to_return_error = {.id = -1}; 
+		return to_return_error;
 	}
-	request_t toReturn = round_robin->requests_queue[0];
+	request_t to_return = round_robin->requests_queue[0];
 
 	for(int i = 1; i < round_robin->requests_size; i++) {
 		round_robin->requests_queue[i - 1] = round_robin->requests_queue[i];
 	}
-	if((--toReturn.requests_amount) > 0) {
-		round_robin->requests_queue[round_robin->requests_size - 1] = toReturn;
+	if((--to_return.requests_amount) > 0) {
+		round_robin->requests_queue[round_robin->requests_size - 1] = to_return;
 	} else {
 		round_robin->requests_size--;
 	}
 	int index = -1;
 	for(int i = 0; i < round_robin->priority_current_size && index == -1; i++) {
-		if(equals(toReturn.requester, round_robin->priority_queue[i])) {
+		if(equals(to_return.requester, round_robin->priority_queue[i])) {
 			index = i;
 		}
 	}
 	for(int i = index + 1; i < round_robin->priority_current_size; i++) {
 		round_robin->priority_queue[i - 1] = round_robin->priority_queue[i];
 	}
-	round_robin->priority_queue[round_robin->priority_current_size - 1] = toReturn.requester;
+	round_robin->priority_queue[round_robin->priority_current_size - 1] = to_return.requester;
 
-	return toReturn.requester.id;
+	return to_return.requester;
 }

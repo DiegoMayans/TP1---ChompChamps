@@ -8,7 +8,7 @@ typedef struct requester_key* requester_id;
 typedef struct {
     requester_id id;
     //User-defined object
-    char* name;
+    int fd;
 } requester_t;
 
 //User must define an upper bound:
@@ -21,7 +21,7 @@ round_robin_adt new_round_robin(requester_t requesters[], int cant_requesters);
 //No retorna nada
 int push_request(round_robin_adt round_robin, requester_t requester);
 //Retorna id de solicitudes restantes, -1 si no hay más solicitudes
-requester_id pop_request(round_robin_adt round_robin);
+requester_t pop_request(round_robin_adt round_robin);
 //Retorna si dos requesters son iguales
 bool equals(requester_t req1, requester_t req2);
 

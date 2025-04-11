@@ -1,7 +1,7 @@
 #include "../includes/master.h"
 
 int main(int argc, char *argv[]) {
-    int players_read_fds[MAX_PLAYERS];
+    requester_t players_read_fds[MAX_PLAYERS];
 
     argument_t arguments = {"10", "10", 200, 10, 0};
 
@@ -27,6 +27,9 @@ int main(int argc, char *argv[]) {
 
     time_t last_valid_move_time;
     time(&last_valid_move_time);
+
+    round_robin_adt scheduler = new_round_robin(players_read_fds, players_count);
+
     while (true) {
         sem_post(&game_sync->print_needed);
         sem_wait(&game_sync->print_done);
@@ -38,27 +41,29 @@ int main(int argc, char *argv[]) {
 
         FD_ZERO(&read_fds);
         for (int i = 0; i < players_count; i++) {
-            FD_SET(players_read_fds[i], &read_fds);
-            max_fd = players_read_fds[i] > max_fd ? players_read_fds[i] : max_fd;
+            FD_SET(players_read_fds[i].fd, &read_fds);
+            max_fd = players_read_fds[i].fd > max_fd ? players_read_fds[i].fd : max_fd;
         }
-
-        int ready = select(max_fd + 1, &read_fds, NULL, NULL, NULL);
-        safe_exit("select", ready < 0, shm_board, shm_sync, players_read_fds, players_count);
-
         char move = -1;
-        int offset = 0, index;
-        for (; offset < players_count; offset++) {
-            index = (current_pipe + offset) % players_count;
-
-            if (FD_ISSET(players_read_fds[index], &read_fds)) {
-                int bytes = read(players_read_fds[index], &move, sizeof(char));
-                safe_exit("read", bytes < 0, shm_board, shm_sync, players_read_fds, players_count);
-
-                current_pipe = (current_pipe + 1) % players_count;
-                break;
+        int index = -1;
+        requester_t current_writer;
+        if ((current_writer = pop_request(scheduler)).id == -1){
+            int ready = select(max_fd + 1, &read_fds, NULL, NULL, NULL);
+            safe_exit("select", ready < 0, shm_board, shm_sync, players_read_fds, players_count);
+            for (int i = 0; i < players_count; i++) {
+                if (FD_ISSET(players_read_fds[i].fd, &read_fds)) {
+                    push_request(scheduler, players_read_fds[i]);
+                }
             }
+        } else {
+            for (int i = 0; i < players_count && index == -1; i++){
+                if (equals(current_writer, players_read_fds[i])){
+                    index = i;
+                }
+            }
+            int bytes = read(players_read_fds[index].fd, &move, sizeof(char));
+            safe_exit("read", bytes < 0, shm_board, shm_sync, players_read_fds, players_count);
         }
-
         int is_valid_move_flag = is_valid_move(game_board, move, index);
 
         sem_wait(&(game_sync->access_queue));  // Espera a que no haya lectores
@@ -93,7 +98,7 @@ int main(int argc, char *argv[]) {
     }
 
     for (int i = 0; i < players_count; i++) {
-        close(players_read_fds[i]);
+        close(players_read_fds[i].fd);
     }
     shm_close(shm_board);
     shm_close(shm_sync);
