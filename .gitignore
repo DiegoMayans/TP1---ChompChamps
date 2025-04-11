@@ -11,5 +11,8 @@ ChompChampsARM
 # archivos de respaldo
 .bash_history
 .DS_Store
+.lesshst
 
-.bash_history
+# archivos de texto
+*.txt
+*.log

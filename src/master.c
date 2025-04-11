@@ -3,7 +3,7 @@
 int main(int argc, char *argv[]) {
     int players_read_fds[MAX_PLAYERS];
 
-    argument_t arguments = {"10", "10", 200, 10, 0};
+    argument_t arguments = {"10", "10", 200, 10, time(NULL)};
 
     parse_arguments(&arguments, argc, argv);
     pid_t pid_list[MAX_PLAYERS];
@@ -12,21 +12,24 @@ int main(int argc, char *argv[]) {
     shm_adt shm_board = shm_create(GAME_STATE_PATH,
                                    sizeof(game_board_t) + sizeof(int) * atoi(arguments.width) * atoi(arguments.height));
     game_board_t *game_board = shm_get_game_board(shm_board);
+    test_exit("Error: No se pudo crear la memoria compartida", game_board == NULL);
 
     shm_adt shm_sync = shm_create(GAME_SYNC_PATH, sizeof(game_sync_t));
     game_sync_t *game_sync = shm_get_game_sync(shm_sync);
+    if (!game_sync) {
+        shm_close(shm_board);
+        test_exit("Error: No se pudo crear la memoria compartida", true);
+    }
 
     srand(arguments.seed);
     init_board(game_board, atoi(arguments.width), atoi(arguments.height), players_count, pid_list);
     init_sync(game_sync);
 
     fd_set read_fds;
-    int max_fd = 0;
-    int current_pipe = 0;
-    int players_finished = 0;
-
+    int max_fd = 0, current_pipe = 0, players_finished = 0;
     time_t last_valid_move_time;
     time(&last_valid_move_time);
+
     while (true) {
         sem_post(&game_sync->print_needed);
         sem_wait(&game_sync->print_done);

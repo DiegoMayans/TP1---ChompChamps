@@ -5,6 +5,14 @@
 #include "stdint.h"
 #include "stdio.h"
 #include "stdlib.h"
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <semaphore.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <errno.h>
 
 void move(direction_t direction);
 
@@ -24,19 +32,28 @@ int main(int argc, char *argv[]) {
 
     shm_adt shm_board = shm_open_readonly(GAME_STATE_PATH, sizeof(game_board_t) + sizeof(int) * height * width);
     game_board_t *board = shm_get_game_board(shm_board);
-    shm_adt shm_sync = shm_open_readwrite(GAME_SYNC_PATH, sizeof(game_sync_t));
-    game_sync_t *sync = shm_get_game_sync(shm_sync);
+    // shm_adt shm_sync = shm_open_readwrite(GAME_SYNC_PATH, sizeof(game_sync_t));
+    // game_sync_t *sync = shm_get_game_sync(shm_sync);
 
-    char flag = 0;
+    // shm->size = size;
+    // shm->fd = shm_open(name, O_RDWR, 0666);
+    // if (shm->fd == -1) {
+    //     perror("shm_open_rdwr");
+    //     free(shm);
+    //     return NULL;
+    // }
+
+    // shm->ptr = map_memory(shm->fd, size, PROT_READ | PROT_WRITE);
+    // if (!shm->ptr) {
+    //     close(shm->fd);
+    //     free(shm);
+    //     return NULL;
+    // }
+    int fd = shm_open(GAME_SYNC_PATH, O_RDWR, 0666);
+    game_sync_t *sync = mmap(NULL, sizeof(game_sync_t), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+
+    direction_t move_to = 0;
     while (!board->game_has_finished) {
-        flag = !flag;
-        char asd;
-        if (flag == 0) {
-            asd = RIGHT;
-        } else {
-            asd = LEFT;
-        }
-
         sem_wait(&sync->access_queue);
         sem_wait(&sync->count_access);
         sync->players_reading_count++;
@@ -47,7 +64,7 @@ int main(int argc, char *argv[]) {
         sem_post(&sync->access_queue);
 
         // Sección crítica: Lectura
-        sleep(1);
+        usleep(100 * 1000);
 
         sem_wait(&sync->count_access);
         sync->players_reading_count--;
@@ -56,11 +73,12 @@ int main(int argc, char *argv[]) {
         }
         sem_post(&sync->count_access);
 
-        move(asd);
+        move_to = (move_to + 1) % 8;
+        move(move_to);
     }
 
     shm_close(shm_board);
-    shm_close(shm_sync);
+    // shm_close(shm_sync);
     return 0;
 }
 

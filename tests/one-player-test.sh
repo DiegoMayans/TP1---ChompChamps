@@ -1,0 +1,1 @@
+./bin/master -p ./bin/good_player -v ./bin/view 

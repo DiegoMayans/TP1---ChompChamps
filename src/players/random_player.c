@@ -1,5 +1,5 @@
-#include <unistd.h>
 #include <time.h>
+#include <unistd.h>
 
 #include "../../includes/defs.h"
 #include "../../includes/shm_adt.h"
@@ -10,6 +10,7 @@
 void move(direction_t direction);
 
 int main(int argc, char *argv[]) {
+    srand(time(NULL));
     if (argc != 3) {
         fprintf(stderr, "Uso: %s <ancho> <alto>\n", argv[0]);
         exit(EXIT_FAILURE);
@@ -29,8 +30,7 @@ int main(int argc, char *argv[]) {
     game_sync_t *sync = shm_get_game_sync(shm_sync);
 
     while (!board->game_has_finished) {
-        srand(time(NULL));
-        char rand_num = (char) (rand() % 7);  // Random direction
+        char rand_num = (char)(rand() % 7);  // Random direction
 
         sem_wait(&sync->access_queue);
         sem_wait(&sync->count_access);
@@ -42,7 +42,7 @@ int main(int argc, char *argv[]) {
         sem_post(&sync->access_queue);
 
         // Sección crítica: Lectura
-        sleep(1);
+        usleep(100 * 1000);
 
         sem_wait(&sync->count_access);
         sync->players_reading_count--;
