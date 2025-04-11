@@ -1,0 +1,1 @@
+valgrind --leak-check=full --show-leak-kinds=all ./bin/master -p ./bin/random_player ./bin/random_player ./bin/random_player ./bin/random_player ./bin/random_player -v ./bin/view -h 20 -w 20

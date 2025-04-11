@@ -6,6 +6,8 @@ int main(int argc, char *argv[]) {
     argument_t arguments = {"10", "10", 200, 10, 0};
 
     parse_arguments(&arguments, argc, argv);
+    pid_t pid_list[MAX_PLAYERS];
+    int players_count = parse_childs(argc, argv, &arguments, players_read_fds, pid_list);
 
     shm_adt shm_board = shm_create(GAME_STATE_PATH,
                                    sizeof(game_board_t) + sizeof(int) * atoi(arguments.width) * atoi(arguments.height));
@@ -14,10 +16,8 @@ int main(int argc, char *argv[]) {
     shm_adt shm_sync = shm_create(GAME_SYNC_PATH, sizeof(game_sync_t));
     game_sync_t *game_sync = shm_get_game_sync(shm_sync);
 
-    int players_count = parse_childs(argc, argv, &arguments, players_read_fds, game_board->players_list);
-
     srand(arguments.seed);
-    init_board(game_board, atoi(arguments.width), atoi(arguments.height), players_count);
+    init_board(game_board, atoi(arguments.width), atoi(arguments.height), players_count, pid_list);
     init_sync(game_sync);
 
     fd_set read_fds;
@@ -43,16 +43,16 @@ int main(int argc, char *argv[]) {
         }
 
         int ready = select(max_fd + 1, &read_fds, NULL, NULL, NULL);
-        error_exit("select", ready < 0);
+        safe_exit("select", ready < 0, shm_board, shm_sync, players_read_fds, players_count);
 
-        char move;
+        char move = -1;
         int offset = 0, index;
         for (; offset < players_count; offset++) {
             index = (current_pipe + offset) % players_count;
 
             if (FD_ISSET(players_read_fds[index], &read_fds)) {
                 int bytes = read(players_read_fds[index], &move, sizeof(char));
-                error_exit("read", bytes < 0);
+                safe_exit("read", bytes < 0, shm_board, shm_sync, players_read_fds, players_count);
 
                 current_pipe = (current_pipe + 1) % players_count;
                 break;
@@ -95,12 +95,10 @@ int main(int argc, char *argv[]) {
     for (int i = 0; i < players_count; i++) {
         close(players_read_fds[i]);
     }
-
-    while (wait(NULL) > 0)
-        ;
-
     shm_close(shm_board);
     shm_close(shm_sync);
+
+    while (wait(NULL) > 0);
 
     exit(EXIT_SUCCESS);
 }  // END MAIN
@@ -162,7 +160,7 @@ int has_valid_moves(game_board_t *game_board, int player_index) {
 
 pid_t create_process(char *executable, char *height, char *width, int fd[2], int redirect_stdout) {
     pid_t pid = fork();
-    error_exit("fork", pid < 0);
+    test_exit("fork", pid < 0);
 
     if (pid == 0) {
         // Child process
@@ -181,7 +179,7 @@ pid_t create_process(char *executable, char *height, char *width, int fd[2], int
         char *new_envp[] = {NULL};
 
         execve(executable, new_argv, new_envp);
-        error_exit("execve", true);
+        test_exit("execve", true);
     }
 
     return pid;
@@ -190,10 +188,10 @@ pid_t create_process(char *executable, char *height, char *width, int fd[2], int
 void parse_arguments(argument_t *arguments, int argc, char *argv[]) {
     for (int i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "-h") && i + 1 < argc) {
-            if (atoi(argv[i + 1]) < MIN_HEIGHT) error_exit("El valor mínimo para el alto es demasiado bajo", true);
+            if (atoi(argv[i + 1]) < MIN_HEIGHT) test_exit("El valor mínimo para el alto es demasiado bajo", true);
             strcpy(arguments->height, argv[++i]);
         } else if (!strcmp(argv[i], "-w") && i + 1 < argc) {
-            if (atoi(argv[i + 1]) < MIN_WIDTH) error_exit("El valor mínimo para el ancho es demasiado bajo", true);
+            if (atoi(argv[i + 1]) < MIN_WIDTH) test_exit("El valor mínimo para el ancho es demasiado bajo", true);
             strcpy(arguments->width, argv[++i]);
         } else if (!strcmp(argv[i], "-d") && i + 1 < argc) {
             arguments->delay = atoi(argv[++i]);
@@ -205,19 +203,19 @@ void parse_arguments(argument_t *arguments, int argc, char *argv[]) {
     }
 }
 
-int parse_childs(int argc, char *argv[], argument_t *arguments, int players_read_fds[], player_t players[]) {
+int parse_childs(int argc, char *argv[], argument_t *arguments, int players_read_fds[], pid_t pid_list[]) {
     int players_count = 0, views_count = 0, i = 1;
 
     while (i < argc) {
         if (strcmp(argv[i], "-p") == 0) {
             i++;
             while (i < argc && argv[i][0] != '-') {
-                error_exit("Error: No se pueden tener mas de 9 jugadores", players_count >= MAX_PLAYERS);
+                test_exit("Error: No se pueden tener mas de 9 jugadores", players_count >= MAX_PLAYERS);
 
                 int fd[2];
                 pipe(fd);
                 pid_t pid = create_process(argv[i], arguments->height, arguments->width, fd, 1);
-                initialize_player(&players[players_count], pid);
+                pid_list[players_count] = pid;
 
                 players_read_fds[players_count++] = fd[0];
                 close(fd[1]);
@@ -227,7 +225,7 @@ int parse_childs(int argc, char *argv[], argument_t *arguments, int players_read
         } else if (strcmp(argv[i], "-v") == 0) {
             i++;
             while (i < argc && argv[i][0] != '-') {
-                error_exit("Error: No se pueden tener mas de 1 vista", views_count >= MAX_VIEWS);
+                test_exit("Error: No se pueden tener mas de 1 vista", views_count >= MAX_VIEWS);
 
                 create_process(argv[i], arguments->height, arguments->width, NULL, 0);
                 views_count++;
@@ -238,7 +236,7 @@ int parse_childs(int argc, char *argv[], argument_t *arguments, int players_read
         }
     }
 
-    error_exit("Error: se requiere por lo menos un jugador y una vista\n", players_count < 1 || views_count < 1);
+    test_exit("Error: se requiere por lo menos un jugador y una vista\n", players_count < 1 || views_count < 1);
 
     return players_count;
 }
@@ -251,8 +249,20 @@ void set_coordinates(int *x, int *y, direction_t move) {
     *y += dy[move];
 }
 
-void error_exit(const char *msg, int condition) {
+void test_exit(const char *msg, int condition) {
     if (condition) {
+        perror(msg);
+        exit(EXIT_FAILURE);
+    }
+}
+
+void safe_exit(const char *msg, int condition, shm_adt shm_board, shm_adt shm_sync, int fds[], int players_count) {
+    if (condition) {
+        for (int i = 0; i < players_count; i++) {
+            if (fds[i] > 0) close(fds[i]);
+        }
+        shm_close(shm_board);
+        shm_close(shm_sync);
         perror(msg);
         exit(EXIT_FAILURE);
     }
@@ -270,7 +280,7 @@ void initialize_player(player_t *player, pid_t pid) {
     player->pid = pid;
 }
 
-void init_board(game_board_t *game_board, int width, int height, int players_count) {
+void init_board(game_board_t *game_board, int width, int height, int players_count, pid_t pid_list[]) {
     game_board->width = width;
     game_board->height = height;
     game_board->player_count = players_count;
@@ -280,6 +290,9 @@ void init_board(game_board_t *game_board, int width, int height, int players_cou
         game_board->board[i] = rand() % 9 + 1;
     }
 
+    for (int i = 0; i < players_count; i++) {
+        initialize_player(&game_board->players_list[i], pid_list[i]);
+    }
     initialize_player_positions(game_board, width, height, players_count);
 }
 

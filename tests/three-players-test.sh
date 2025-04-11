@@ -1,1 +1,1 @@
-./bin/master -p ./bin/null_player ./bin/player ./bin/player -v ./bin/view 
+./bin/master -p ./bin/random_player ./bin/random_player ./bin/random_player -v ./bin/view 
