@@ -24,5 +24,7 @@ int push_request(round_robin_adt round_robin, requester_t requester);
 requester_t pop_request(round_robin_adt round_robin);
 //Retorna si dos requesters son iguales
 bool equals(requester_t req1, requester_t req2);
+//Retorna si el id es valido
+bool is_id_valid (requester_t requester);
 
 #endif

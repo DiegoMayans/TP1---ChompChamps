@@ -136,3 +136,7 @@ requester_t pop_request(round_robin_adt round_robin) {
 
 	return to_return.requester;
 }
+
+bool is_id_valid (requester_t requester){
+	return (requester.id->id != -1);
+}

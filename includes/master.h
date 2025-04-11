@@ -24,7 +24,7 @@ typedef struct {
 
 pid_t create_process(char *executable, char *height, char *width, int fd[2], int redirect_stdout);
 void parse_arguments(argument_t *arguments, int argc, char *argv[]);
-int parse_childs(int argc, char *argv[], argument_t *arguments, int players_read_fds[], pid_t pid_list[]);
+int parse_childs(int argc, char *argv[], argument_t *arguments, requester_t players_read_fds[], pid_t pid_list[]);
 void init_board(game_board_t *game_board, int width, int height, int players_count, pid_t pid_list[]);
 void init_sync(game_sync_t *game_sync);
 void initialize_player(player_t *player, pid_t pid);
@@ -34,6 +34,6 @@ void set_coordinates(int *x, int *y, direction_t move);
 void update_player(game_board_t *game_board, direction_t move, int player_index);
 int has_valid_moves(game_board_t *game_board, int player_index);
 void test_exit(const char *msg, int condition);
-void safe_exit(const char *msg, int condition, shm_adt shm_board, shm_adt shm_sync, int fds[], int players_count);
+void safe_exit(const char *msg, int condition, shm_adt shm_board, shm_adt shm_sync, requester_t fds[], int players_count);
 
 #endif

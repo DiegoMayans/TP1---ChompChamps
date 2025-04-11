@@ -22,7 +22,6 @@ int main(int argc, char *argv[]) {
 
     fd_set read_fds;
     int max_fd = 0;
-    int current_pipe = 0;
     int players_finished = 0;
 
     time_t last_valid_move_time;
@@ -47,7 +46,8 @@ int main(int argc, char *argv[]) {
         char move = -1;
         int index = -1;
         requester_t current_writer;
-        if ((current_writer = pop_request(scheduler)).id == -1){
+        current_writer = pop_request(scheduler);
+        if (!(is_id_valid(current_writer))){
             int ready = select(max_fd + 1, &read_fds, NULL, NULL, NULL);
             safe_exit("select", ready < 0, shm_board, shm_sync, players_read_fds, players_count);
             for (int i = 0; i < players_count; i++) {
@@ -208,7 +208,7 @@ void parse_arguments(argument_t *arguments, int argc, char *argv[]) {
     }
 }
 
-int parse_childs(int argc, char *argv[], argument_t *arguments, int players_read_fds[], pid_t pid_list[]) {
+int parse_childs(int argc, char *argv[], argument_t *arguments, requester_t players_read_fds[], pid_t pid_list[]) {
     int players_count = 0, views_count = 0, i = 1;
 
     while (i < argc) {
@@ -222,7 +222,7 @@ int parse_childs(int argc, char *argv[], argument_t *arguments, int players_read
                 pid_t pid = create_process(argv[i], arguments->height, arguments->width, fd, 1);
                 pid_list[players_count] = pid;
 
-                players_read_fds[players_count++] = fd[0];
+                players_read_fds[players_count++].fd = fd[0];
                 close(fd[1]);
 
                 i++;
@@ -261,10 +261,10 @@ void test_exit(const char *msg, int condition) {
     }
 }
 
-void safe_exit(const char *msg, int condition, shm_adt shm_board, shm_adt shm_sync, int fds[], int players_count) {
+void safe_exit(const char *msg, int condition, shm_adt shm_board, shm_adt shm_sync, requester_t fds[], int players_count) {
     if (condition) {
         for (int i = 0; i < players_count; i++) {
-            if (fds[i] > 0) close(fds[i]);
+            if (fds[i].fd > 0) close(fds[i].fd);
         }
         shm_close(shm_board);
         shm_close(shm_sync);
