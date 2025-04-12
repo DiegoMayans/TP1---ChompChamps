@@ -1,7 +1,7 @@
 #include "../includes/master.h"
 
 int main(int argc, char *argv[]) {
-    int players_read_fds[MAX_PLAYERS];
+    requester_t players_read_fds[MAX_PLAYERS];
 
     argument_t arguments = {"10", "10", 200, 10, time(NULL)};
 
@@ -27,8 +27,13 @@ int main(int argc, char *argv[]) {
 
     fd_set read_fds;
     int max_fd = 0, current_pipe = 0, players_finished = 0;
+    int max_fd = 0;
+    int players_finished = 0;
+
     time_t last_valid_move_time;
     time(&last_valid_move_time);
+
+    round_robin_adt scheduler = new_round_robin(players_read_fds, players_count);
 
     while (true) {
         sem_post(&game_sync->print_needed);
@@ -41,27 +46,30 @@ int main(int argc, char *argv[]) {
 
         FD_ZERO(&read_fds);
         for (int i = 0; i < players_count; i++) {
-            FD_SET(players_read_fds[i], &read_fds);
-            max_fd = players_read_fds[i] > max_fd ? players_read_fds[i] : max_fd;
+            FD_SET(players_read_fds[i].fd, &read_fds);
+            max_fd = players_read_fds[i].fd > max_fd ? players_read_fds[i].fd : max_fd;
         }
-
-        int ready = select(max_fd + 1, &read_fds, NULL, NULL, NULL);
-        safe_exit("select", ready < 0, shm_board, shm_sync, players_read_fds, players_count);
-
         char move = -1;
-        int offset = 0, index;
-        for (; offset < players_count; offset++) {
-            index = (current_pipe + offset) % players_count;
-
-            if (FD_ISSET(players_read_fds[index], &read_fds)) {
-                int bytes = read(players_read_fds[index], &move, sizeof(char));
-                safe_exit("read", bytes < 0, shm_board, shm_sync, players_read_fds, players_count);
-
-                current_pipe = (current_pipe + 1) % players_count;
-                break;
+        int index = -1;
+        requester_t current_writer;
+        current_writer = pop_request(scheduler);
+        if (!(is_id_valid(current_writer))){
+            int ready = select(max_fd + 1, &read_fds, NULL, NULL, NULL);
+            safe_exit("select", ready < 0, shm_board, shm_sync, players_read_fds, players_count);
+            for (int i = 0; i < players_count; i++) {
+                if (FD_ISSET(players_read_fds[i].fd, &read_fds)) {
+                    push_request(scheduler, players_read_fds[i]);
+                }
             }
+        } else {
+            for (int i = 0; i < players_count && index == -1; i++){
+                if (equals(current_writer, players_read_fds[i])){
+                    index = i;
+                }
+            }
+            int bytes = read(players_read_fds[index].fd, &move, sizeof(char));
+            safe_exit("read", bytes < 0, shm_board, shm_sync, players_read_fds, players_count);
         }
-
         int is_valid_move_flag = is_valid_move(game_board, move, index);
 
         sem_wait(&(game_sync->access_queue));  // Espera a que no haya lectores
@@ -96,7 +104,7 @@ int main(int argc, char *argv[]) {
     }
 
     for (int i = 0; i < players_count; i++) {
-        close(players_read_fds[i]);
+        close(players_read_fds[i].fd);
     }
     shm_close(shm_board);
     shm_close(shm_sync);
@@ -206,7 +214,7 @@ void parse_arguments(argument_t *arguments, int argc, char *argv[]) {
     }
 }
 
-int parse_childs(int argc, char *argv[], argument_t *arguments, int players_read_fds[], pid_t pid_list[]) {
+int parse_childs(int argc, char *argv[], argument_t *arguments, requester_t players_read_fds[], pid_t pid_list[]) {
     int players_count = 0, views_count = 0, i = 1;
 
     while (i < argc) {
@@ -220,7 +228,7 @@ int parse_childs(int argc, char *argv[], argument_t *arguments, int players_read
                 pid_t pid = create_process(argv[i], arguments->height, arguments->width, fd, 1);
                 pid_list[players_count] = pid;
 
-                players_read_fds[players_count++] = fd[0];
+                players_read_fds[players_count++].fd = fd[0];
                 close(fd[1]);
 
                 i++;
@@ -259,10 +267,10 @@ void test_exit(const char *msg, int condition) {
     }
 }
 
-void safe_exit(const char *msg, int condition, shm_adt shm_board, shm_adt shm_sync, int fds[], int players_count) {
+void safe_exit(const char *msg, int condition, shm_adt shm_board, shm_adt shm_sync, requester_t fds[], int players_count) {
     if (condition) {
         for (int i = 0; i < players_count; i++) {
-            if (fds[i] > 0) close(fds[i]);
+            if (fds[i].fd > 0) close(fds[i].fd);
         }
         shm_close(shm_board);
         shm_close(shm_sync);

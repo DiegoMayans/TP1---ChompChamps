@@ -1,14 +1,12 @@
 #include <sys/mman.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <stdio.h>
 
 #include "../includes/round_robin_adt.h"
 
-struct round_robin_cdt {
-	request_t requests_queue[MAX_REQUESTERS];
-	int requests_size;
-	requester_t priority_queue[MAX_REQUESTERS];
-	int cant_requesters
+struct requester_key {
+	int id; //	>= 0
 };
 
 typedef struct {
@@ -16,20 +14,37 @@ typedef struct {
 	int requests_amount;
 } request_t;
 
+struct round_robin_cdt {
+	request_t requests_queue[MAX_REQUESTERS];
+	int requests_size;
+	requester_t priority_queue[MAX_REQUESTERS];
+	int priority_current_size;
+	int cant_requesters;
+};
+
 static struct round_robin_cdt round_robin = {0};
+
+static requester_id valid_id[MAX_REQUESTERS];
 
 round_robin_adt new_round_robin(requester_t requesters[], int cant_requesters) {
 	for(int i = 0; i < cant_requesters; i++) {
-		round_robin.priority_queue[i] = requesters[i];
+		struct requester_key key = {.id = i};
+		requesters[i].id = &key;
+		valid_id[i] = &key;
 	}
 	round_robin.requests_size = 0;
 	round_robin.cant_requesters = cant_requesters;
+	round_robin.priority_current_size = 0;
 	return &round_robin;
+}
+
+bool equals(requester_t req1, requester_t req2) {
+	return (req1.id - req2.id) == 0;
 }
 
 static bool belongs(round_robin_adt round_robin, requester_t requester) {
 	bool found = false;
-	for(int i = 0; i < round_robin->cant_requesters && !found; i++) {
+	for(int i = 0; i < round_robin->priority_current_size && !found; i++) {
 		if(equals(requester, round_robin->priority_queue[i])) {
 			found = true;
 		}
@@ -37,9 +52,6 @@ static bool belongs(round_robin_adt round_robin, requester_t requester) {
 	return found;
 }
 
-static bool equals(requester_t req1, requester_t req2) {
-	return (req1.id - req2.id) == 0;
-}
 
 static void init_requester(round_robin_adt round_robin, requester_t requester, int index) {
 	round_robin->requests_queue[index].requester = requester;
@@ -48,7 +60,7 @@ static void init_requester(round_robin_adt round_robin, requester_t requester, i
 
 static int has_priority(requester_t incoming, requester_t active, round_robin_adt round_robin) {
 	int incoming_index, active_index;
-	for(int i = 0; i < round_robin->cant_requesters; i++) {
+	for(int i = 0; i < round_robin->priority_current_size; i++) {
 		if(equals(incoming, round_robin->priority_queue[i])) {
 			incoming_index = i;
 		}
@@ -59,23 +71,31 @@ static int has_priority(requester_t incoming, requester_t active, round_robin_ad
 	return incoming_index - active_index;
 }
 
-void push_request(round_robin_adt round_robin, requester_t requester) {
+int push_request(round_robin_adt round_robin, requester_t requester) {
 	if(!belongs(round_robin, requester)) {
-		perror("Requester does not belong");
-		exit(EXIT_FAILURE);
+		bool found = false;
+		for(int i = 0; i < round_robin->cant_requesters && !found; i++) {
+			if(requester.id->id == valid_id[i]->id) {
+				round_robin->priority_queue[round_robin->priority_current_size++] = requester;
+				found = true;
+			}
+		}
+		if(!found) {
+			return EXIT_FAILURE;
+		}
 	}
 	bool added = false;
 	int i = 0;
 	for(; i < round_robin->requests_size && !added; i++) {
 		int priority;
-		if((priority = has_priority(requester, round_robin->requests_queue[i].requester, round_robin->requests_size)) < 0) {
+		if((priority = has_priority(requester, round_robin->requests_queue[i].requester, round_robin)) < 0) {
 			for(int k = round_robin->requests_size; k > i; k--) {
 				round_robin->requests_queue[k] = round_robin->requests_queue[k - 1];
 			}
 			init_requester(round_robin, requester, i);
+			round_robin->requests_size++;
 			added = true;
 		} else if(priority == 0) {
-			init_requester(round_robin, requester, i);
 			round_robin->requests_queue[i].requests_amount++;
 			added = true;
 		}
@@ -84,32 +104,39 @@ void push_request(round_robin_adt round_robin, requester_t requester) {
 		init_requester(round_robin, requester, i);
 		round_robin->requests_size++;
 	}
+
+	return EXIT_SUCCESS;
 }
 
-int pop_request(round_robin_adt round_robin) {
+requester_t pop_request(round_robin_adt round_robin) {
 	if(round_robin->requests_size <= 0) {
-		return -1;
+		requester_t to_return_error = {.id = -1}; 
+		return to_return_error;
 	}
-	request_t toReturn = round_robin->requests_queue[0];
+	request_t to_return = round_robin->requests_queue[0];
 
 	for(int i = 1; i < round_robin->requests_size; i++) {
 		round_robin->requests_queue[i - 1] = round_robin->requests_queue[i];
 	}
-	if((--round_robin->requests_queue[0].requests_amount) > 0) {
-		round_robin->requests_queue[round_robin->requests_size - 1] = toReturn;
+	if((--to_return.requests_amount) > 0) {
+		round_robin->requests_queue[round_robin->requests_size - 1] = to_return;
 	} else {
 		round_robin->requests_size--;
 	}
 	int index = -1;
-	for(int i = 0; i < round_robin->cant_requesters && index == -1; i++) {
-		if(equals(toReturn.requester, round_robin->priority_queue[i])) {
+	for(int i = 0; i < round_robin->priority_current_size && index == -1; i++) {
+		if(equals(to_return.requester, round_robin->priority_queue[i])) {
 			index = i;
 		}
 	}
-	for(int i = index + 1; i < round_robin->cant_requesters; i++) {
+	for(int i = index + 1; i < round_robin->priority_current_size; i++) {
 		round_robin->priority_queue[i - 1] = round_robin->priority_queue[i];
 	}
-	round_robin->priority_queue[round_robin->cant_requesters - 1] = toReturn.requester;
+	round_robin->priority_queue[round_robin->priority_current_size - 1] = to_return.requester;
 
-	return toReturn.requester.id;
+	return to_return.requester;
+}
+
+bool is_id_valid (requester_t requester){
+	return (requester.id->id != -1);
 }

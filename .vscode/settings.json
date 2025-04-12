@@ -5,7 +5,8 @@
     "defs.h": "c",
     "master.h": "c",
     "shm_adt.h": "c",
-    "view.h": "c"
+    "view.h": "c",
+    "cmath": "c"
   },
   "C_Cpp.errorSquiggles": "enabled"
 }
