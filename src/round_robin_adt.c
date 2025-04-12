@@ -110,7 +110,9 @@ int push_request(round_robin_adt round_robin, requester_t requester) {
 
 requester_t pop_request(round_robin_adt round_robin) {
 	if(round_robin->requests_size <= 0) {
-		requester_t to_return_error = {.id = -1}; 
+		static struct requester_key error_key = {.id = -1}; 
+		requester_t to_return_error = {.id = &error_key};
+
 		return to_return_error;
 	}
 	request_t to_return = round_robin->requests_queue[0];
