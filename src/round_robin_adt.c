@@ -24,13 +24,14 @@ struct round_robin_cdt {
 
 static struct round_robin_cdt round_robin = {0};
 
+struct requester_key keys[MAX_REQUESTERS];
 static requester_id valid_id[MAX_REQUESTERS];
 
 round_robin_adt new_round_robin(requester_t requesters[], int cant_requesters) {
 	for(int i = 0; i < cant_requesters; i++) {
-		struct requester_key key = {.id = i};
-		requesters[i].id = &key;
-		valid_id[i] = &key;
+		keys[i].id = i;
+		requesters[i].id = &keys[i];
+		valid_id[i] = &keys[i];
 	}
 	round_robin.requests_size = 0;
 	round_robin.cant_requesters = cant_requesters;
@@ -39,7 +40,7 @@ round_robin_adt new_round_robin(requester_t requesters[], int cant_requesters) {
 }
 
 bool equals(requester_t req1, requester_t req2) {
-	return (req1.id - req2.id) == 0;
+	return (req1.id->id - req2.id->id) == 0;
 }
 
 static bool belongs(round_robin_adt round_robin, requester_t requester) {

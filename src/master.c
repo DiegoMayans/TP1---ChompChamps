@@ -32,8 +32,9 @@ int main(int argc, char *argv[]) {
     time_t last_valid_move_time;
     time(&last_valid_move_time);
 
+    
     round_robin_adt scheduler = new_round_robin(players_read_fds, players_count);
-
+    
     while (true) {
         sem_post(&game_sync->print_needed);
         sem_wait(&game_sync->print_done);
