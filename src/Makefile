@@ -14,7 +14,7 @@ all: $(BINARIES) players
 
 $(BIN_DIR)/%: $(SRC_DIR)/%.c
 	@mkdir -p $(BIN_DIR)
-	$(CC) $(CFLAGS) $< $(SRC_DIR)/shm_adt.c -o $@ $(LDFLAGS)
+	$(CC) $(CFLAGS) $< $(SRC_DIR)/shm_adt.c $(SRC_DIR)/round_robin_adt.c -o $@ $(LDFLAGS)
 
 players:
 	$(MAKE) -C players

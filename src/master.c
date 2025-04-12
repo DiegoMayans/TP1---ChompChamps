@@ -26,7 +26,6 @@ int main(int argc, char *argv[]) {
     init_sync(game_sync);
 
     fd_set read_fds;
-    int max_fd = 0, current_pipe = 0, players_finished = 0;
     int max_fd = 0;
     int players_finished = 0;
 
