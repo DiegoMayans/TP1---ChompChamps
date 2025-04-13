@@ -6,7 +6,8 @@
     "master.h": "c",
     "shm_adt.h": "c",
     "view.h": "c",
-    "cmath": "c"
+    "cmath": "c",
+    "round_robin_adt.h": "c"
   },
   "C_Cpp.errorSquiggles": "enabled"
 }

@@ -1,13 +1,31 @@
 #include "../includes/master.h"
 
+#include <time.h>
+
+void log_with_timestamp(FILE *log_file, const char *message) {
+    time_t now = time(NULL);
+    struct tm *local_time = localtime(&now);
+
+    char timestamp[20];
+    strftime(timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M:%S", local_time);
+
+    fprintf(log_file, "[%s] %s\n", timestamp, message);
+    fflush(log_file);  // Ensure the log is written immediately
+}
+
 int main(int argc, char *argv[]) {
+    FILE *log_file = fopen("master.log", "w");
+    if (!log_file) {
+        perror("Error al abrir el archivo de log");
+        exit(EXIT_FAILURE);
+    }
+    log_with_timestamp(log_file, "Iniciando el proceso maestro");
+
     requester_t players_read_fds[MAX_PLAYERS];
 
     argument_t arguments = {"10", "10", 200, 10, time(NULL)};
 
     parse_arguments(&arguments, argc, argv);
-    pid_t pid_list[MAX_PLAYERS];
-    int players_count = parse_childs(argc, argv, &arguments, players_read_fds, pid_list);
 
     shm_adt shm_board = shm_create(GAME_STATE_PATH,
                                    sizeof(game_board_t) + sizeof(int) * atoi(arguments.width) * atoi(arguments.height));
@@ -21,31 +39,34 @@ int main(int argc, char *argv[]) {
         test_exit("Error: No se pudo crear la memoria compartida", true);
     }
 
+    pid_t pid_list[MAX_PLAYERS];
+    int players_count = parse_childs(argc, argv, &arguments, players_read_fds, pid_list);
+
     srand(arguments.seed);
     init_board(game_board, atoi(arguments.width), atoi(arguments.height), players_count, pid_list);
     init_sync(game_sync);
 
     fd_set read_fds;
     int max_fd = 0;
-    int players_finished = 0;
+
+    struct timeval timeout;
+    timeout.tv_sec = 10;
+    timeout.tv_usec = 0;
 
     time_t last_valid_move_time;
     time(&last_valid_move_time);
 
-    
     round_robin_adt scheduler = new_round_robin(players_read_fds, players_count);
-    
-    while (true) {
+
+    while (true) {  // MAIN LOOP------------------------------------------------
         sem_post(&game_sync->print_needed);
         sem_wait(&game_sync->print_done);
         usleep(arguments.delay * 1000);
 
-        if (game_board->game_has_finished) {
-            break;
-        }
-
         FD_ZERO(&read_fds);
+        log_with_timestamp(log_file, "Reseting FDS before");
         for (int i = 0; i < players_count; i++) {
+            log_with_timestamp(log_file, "Reseting FDS");
             FD_SET(players_read_fds[i].fd, &read_fds);
             max_fd = players_read_fds[i].fd > max_fd ? players_read_fds[i].fd : max_fd;
         }
@@ -53,8 +74,17 @@ int main(int argc, char *argv[]) {
         int index = -1;
         requester_t current_writer;
         current_writer = pop_request(scheduler);
-        if (!(is_id_valid(current_writer))){
-            int ready = select(max_fd + 1, &read_fds, NULL, NULL, NULL);
+        if (!(is_id_valid(current_writer))) {
+            int ready = select(max_fd + 1, &read_fds, NULL, NULL, &timeout);
+            char message[50];
+            snprintf(message, sizeof(message), "Unblocking, ready: %d", ready);
+            log_with_timestamp(log_file, message);
+            if (ready == 0) {
+                game_board->game_has_finished = true;
+                log_with_timestamp(log_file, "Exiting because of timeout");
+
+                break;
+            }
             safe_exit("select", ready < 0, shm_board, shm_sync, players_read_fds, players_count);
             for (int i = 0; i < players_count; i++) {
                 if (FD_ISSET(players_read_fds[i].fd, &read_fds)) {
@@ -62,8 +92,8 @@ int main(int argc, char *argv[]) {
                 }
             }
         } else {
-            for (int i = 0; i < players_count && index == -1; i++){
-                if (equals(current_writer, players_read_fds[i])){
+            for (int i = 0; i < players_count && index == -1; i++) {
+                if (equals(current_writer, players_read_fds[i])) {
                     index = i;
                 }
             }
@@ -84,30 +114,42 @@ int main(int argc, char *argv[]) {
         } else {
             update_player(game_board, move, index);
             time(&last_valid_move_time);
-
-            if (!has_valid_moves(game_board, index)) {
-                game_board->players_list[index].has_valid_moves = false;
-                players_finished++;
-            }
-
-            if (players_finished == players_count) {
-                game_board->game_has_finished = true;
-            }
         }
 
         if (time(NULL) - last_valid_move_time > arguments.timeout) {
             game_board->game_has_finished = true;
+            log_with_timestamp(log_file, "Exiting because of no valid moves in 10 seconds");
+            break;
         }
+
+        int count = 0;
+        for (int i = 0; i < players_count; i++) {
+            if (!has_valid_moves(game_board, i)) {
+                count++;
+            } else {
+                break;  // No hay necesidad de seguir contando
+            }
+        }
+        if (count == players_count) {
+            game_board->game_has_finished = true;
+            log_with_timestamp(log_file, "Exiting because of no more moves");
+            break;
+        }
+
         // FIN SECCION ESCRITURA
 
         sem_post(&(game_sync->game_state_access));  // Libera el recurso
-    }
+    }  // MAIN LOOP ENDS ----------------------------------------------
+
+    sem_post(&game_sync->print_needed);  // Vista imprime estado final
+    sem_wait(&game_sync->print_done);
 
     for (int i = 0; i < players_count; i++) {
         close(players_read_fds[i].fd);
     }
     shm_close(shm_board);
     shm_close(shm_sync);
+    fclose(log_file);
 
     while (wait(NULL) > 0);
 
@@ -160,7 +202,7 @@ int has_valid_moves(game_board_t *game_board, int player_index) {
         set_coordinates(&new_x, &new_y, i);
 
         if (new_x >= 0 && new_y >= 0 && new_x < game_board->width && new_y < game_board->height &&
-            game_board->board[new_x + new_y * game_board->width] >= 0) {
+            game_board->board[new_x + new_y * game_board->width] > 0) {
             return 1;
         }
     }
@@ -267,7 +309,8 @@ void test_exit(const char *msg, int condition) {
     }
 }
 
-void safe_exit(const char *msg, int condition, shm_adt shm_board, shm_adt shm_sync, requester_t fds[], int players_count) {
+void safe_exit(const char *msg, int condition, shm_adt shm_board, shm_adt shm_sync, requester_t fds[],
+               int players_count) {
     if (condition) {
         for (int i = 0; i < players_count; i++) {
             if (fds[i].fd > 0) close(fds[i].fd);
