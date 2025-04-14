@@ -173,7 +173,10 @@ requester_t* pop(round_robin_adt round_robin) {
 
     // Priority list management
     if (to_return->priority_next != NULL) {
-        round_robin->priority_first = to_return->priority_next;
+        // If there only was 1 element, and it had more than 1 request, we need for it to keep at priority_next
+        if(to_return->priority_next == NULL) {
+            round_robin->priority_first = to_return->priority_next;
+        }
         round_robin->priority_last->priority_next = to_return;
     }
     round_robin->priority_last = to_return;
