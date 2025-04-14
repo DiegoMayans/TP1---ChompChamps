@@ -1,6 +1,7 @@
 #include "../includes/master.h"
 
 #include <time.h>
+#include <valgrind/valgrind.h>
 
 void log_with_timestamp(FILE *log_file, const char *message) {
     time_t now = time(NULL);
@@ -50,7 +51,7 @@ int main(int argc, char *argv[]) {
     int max_fd = 0;
 
     struct timeval timeout;
-    timeout.tv_sec = 10;
+    timeout.tv_sec = arguments.timeout;
     timeout.tv_usec = 0;
 
     time_t last_valid_move_time;
@@ -61,28 +62,23 @@ int main(int argc, char *argv[]) {
     while (true) {  // MAIN LOOP------------------------------------------------
         sem_post(&game_sync->print_needed);
         sem_wait(&game_sync->print_done);
+
         usleep(arguments.delay * 1000);
 
         FD_ZERO(&read_fds);
-        log_with_timestamp(log_file, "Reseting FDS before");
         for (int i = 0; i < players_count; i++) {
-            log_with_timestamp(log_file, "Reseting FDS");
             FD_SET(players_read_fds[i].fd, &read_fds);
             max_fd = players_read_fds[i].fd > max_fd ? players_read_fds[i].fd : max_fd;
         }
+
         char move = -1;
         int index = -1;
         requester_t current_writer;
-        current_writer = pop_request(scheduler);
+        current_writer = pop(scheduler);
         if (!(is_id_valid(current_writer))) {
             int ready = select(max_fd + 1, &read_fds, NULL, NULL, &timeout);
-            char message[50];
-            snprintf(message, sizeof(message), "Unblocking, ready: %d", ready);
-            log_with_timestamp(log_file, message);
             if (ready == 0) {
                 game_board->game_has_finished = true;
-                log_with_timestamp(log_file, "Exiting because of timeout");
-
                 break;
             }
             safe_exit("select", ready < 0, shm_board, shm_sync, players_read_fds, players_count);
@@ -119,20 +115,25 @@ int main(int argc, char *argv[]) {
         if (time(NULL) - last_valid_move_time > arguments.timeout) {
             game_board->game_has_finished = true;
             log_with_timestamp(log_file, "Exiting because of no valid moves in 10 seconds");
+
+            sem_post(&(game_sync->game_state_access));  // Libera el recurso
             break;
         }
 
         int count = 0;
-        for (int i = 0; i < players_count; i++) {
+        for (int i = 0, found = 0; i < players_count && found == 0; i++) {
             if (!has_valid_moves(game_board, i)) {
                 count++;
             } else {
-                break;  // No hay necesidad de seguir contando
+                found = 1;  // No hay necesidad de seguir contando
             }
         }
+
         if (count == players_count) {
             game_board->game_has_finished = true;
             log_with_timestamp(log_file, "Exiting because of no more moves");
+
+            sem_post(&(game_sync->game_state_access));  // Libera el recurso
             break;
         }
 
@@ -141,8 +142,8 @@ int main(int argc, char *argv[]) {
         sem_post(&(game_sync->game_state_access));  // Libera el recurso
     }  // MAIN LOOP ENDS ----------------------------------------------
 
-    sem_post(&game_sync->print_needed);  // Vista imprime estado final
-    sem_wait(&game_sync->print_done);
+    sem_post(&(game_sync->print_needed));  // Vista imprime estado final
+    sem_wait(&(game_sync->print_done));
 
     for (int i = 0; i < players_count; i++) {
         close(players_read_fds[i].fd);
@@ -228,10 +229,24 @@ pid_t create_process(char *executable, char *height, char *width, int fd[2], int
             close(fd[1]);          // Close the write end of the pipe after duplicating
         }
 
-        char *new_argv[] = {executable, height, width, NULL};
-        char *new_envp[] = {NULL};
+        if (RUNNING_ON_VALGRIND) {
+            char *new_argv[] = {"valgrind",
+                                "--log-file=/dev/null",
+                                "--leak-check=full",
+                                "--track-origins=yes",
+                                "--error-exitcode=1",
+                                executable,
+                                height,
+                                width,
+                                NULL};
+            char *new_envp[] = {NULL};
+            execve("/usr/bin/valgrind", new_argv, new_envp);
+        } else {
+            char *new_argv[] = {executable, height, width, NULL};
+            char *new_envp[] = {NULL};
+            execve(executable, new_argv, new_envp);
+        }
 
-        execve(executable, new_argv, new_envp);
         test_exit("execve", true);
     }
 

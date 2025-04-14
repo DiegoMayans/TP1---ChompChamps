@@ -12,6 +12,6 @@ void print_board(game_board_t *board_state, int alto, int ancho);
 
 void print_winner_and_stats(game_board_t *board);
 
-void clear_screen();
+void clear_screen(bool full_clear);
 
 #endif

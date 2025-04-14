@@ -16,3 +16,7 @@ ChompChampsARM
 # archivos de texto
 *.txt
 *.log
+
+# vscode
+.vscode
+settings.json

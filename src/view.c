@@ -1,11 +1,10 @@
 #include "../includes/view.h"
 
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
-
-#include <unistd.h>
-#include <fcntl.h>
 #include <sys/mman.h>
+#include <unistd.h>
 
 #include "../includes/defs.h"
 
@@ -14,6 +13,8 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "Uso: %s <ancho> <alto>\n", argv[0]);
         exit(EXIT_FAILURE);
     }
+
+    setvbuf(stdout, NULL, _IONBF, 0);
 
     int height = atoi(argv[1]);
     int width = atoi(argv[2]);
@@ -31,10 +32,11 @@ int main(int argc, char *argv[]) {
     sem_t *sem_A = &game_sync->print_needed;  // de aca sabe si hay cambios para imprimir
     sem_t *sem_B = &game_sync->print_done;
 
+    clear_screen(true);
     while (!game_board->game_has_finished) {
         sem_wait(sem_A);
 
-        clear_screen();
+        clear_screen(false);
         print_board(game_board, height, width);
 
         sem_post(sem_B);
@@ -67,7 +69,13 @@ void print_board(game_board_t *board_state, int height, int width) {
     printf("\n");
 }
 
-void clear_screen() { printf("\033[H\033[2J\033[3J"); }
+void clear_screen(bool full_clear) {
+    if (full_clear) {
+        printf("\033[H\033[2J\033[3J");  // Limpieza completa
+    } else {
+        printf("\033[H");  // Solo mover cursor
+    }
+}
 
 void print_stats(game_board_t *board_state) {
     printf("\n==== Estadísticas de Jugadores ====\n");
@@ -82,7 +90,7 @@ void print_stats(game_board_t *board_state) {
 }
 
 void print_winner_and_stats(game_board_t *board) {
-    clear_screen();
+    clear_screen(true);
     int max_score = -1;
     int winner = -1;
     for (int i = 0; i < board->player_count; i++) {

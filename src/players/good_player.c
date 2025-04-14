@@ -152,7 +152,7 @@ int main(int argc, char *argv[]) {
 
 void move(direction_t direction) {
     write(1, &direction, sizeof(unsigned char));
-    usleep(700 * 1000);  // Damos tiempo a que el master
+    usleep(400 * 1000);  // Damos tiempo a que el master
 }
 
 void set_coordinates(int *x, int *y, direction_t move) {
