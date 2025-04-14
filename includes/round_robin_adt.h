@@ -18,8 +18,7 @@ round_robin_adt new_round_robin();
 int push(round_robin_adt round_robin, requester_t* requester);
 //Retorna id de solicitudes restantes, -1 si no hay más solicitudes
 requester_t* pop(round_robin_adt round_robin);
-//Retorna si dos requesters son iguales
-bool equals(requester_t* req1, requester_t* req2);
-//Retorna si el id es valido
+// In order to use a requester it must be first instantiated
+void instantiate_requester(round_robin_adt round_robin, requester_t* requester);
 
 #endif
