@@ -289,7 +289,7 @@ int parse_childs(int argc, char *argv[], argument_t *arguments, requester_t play
         }
     }
 
-    test_exit("Error: se requiere por lo menos un jugador y una vista\n", players_count < 1 || views_count < 1);
+    test_exit("Error: se requiere por lo menos un jugador\n", players_count < 1);
 
     return players_count;
 }
