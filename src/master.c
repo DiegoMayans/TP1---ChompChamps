@@ -3,6 +3,8 @@
 #include <time.h>
 #include <valgrind/valgrind.h>
 
+int has_valid_moves(game_board_t *game_board, int player_index, FILE *log_file);
+
 void log_with_timestamp(FILE *log_file, const char *message) {
     time_t now = time(NULL);
     struct tm *local_time = localtime(&now);
@@ -42,7 +44,6 @@ int main(int argc, char *argv[]) {
 
     pid_t pid_list[MAX_PLAYERS];
     int players_count = parse_childs(argc, argv, &arguments, players_read_fds, pid_list);
-    
 
     srand(arguments.seed);
     init_board(game_board, atoi(arguments.width), atoi(arguments.height), players_count, pid_list);
@@ -60,7 +61,7 @@ int main(int argc, char *argv[]) {
 
     round_robin_adt scheduler = new_round_robin();
 
-    for(int i = 0; i < players_count; i++) {
+    for (int i = 0; i < players_count; i++) {
         instantiate_requester(scheduler, &players_read_fds[i]);
     }
 
@@ -77,27 +78,27 @@ int main(int argc, char *argv[]) {
         }
 
         char move = -1;
-        requester_t* current_writer = NULL;
+        requester_t *current_writer = NULL;
         int ready = select(max_fd + 1, &read_fds, NULL, NULL, &timeout);
-        char message[50];
-        snprintf(message, sizeof(message), "Unblocking, ready: %d", ready);
-        log_with_timestamp(log_file, message);
         if (ready == 0) {
             game_board->game_has_finished = true;
             log_with_timestamp(log_file, "Exiting because of timeout");
 
+            sem_post(&(game_sync->print_needed));  
             break;
         }
         safe_exit("select", ready < 0, shm_board, shm_sync, players_read_fds, players_count);
+
         for (int i = 0; i < players_count; i++) {
             if (FD_ISSET(players_read_fds[i].fd, &read_fds)) {
                 push(scheduler, &players_read_fds[i]);
             }
         }
-        while((current_writer = pop(scheduler)) != NULL) {
+
+        while ((current_writer = pop(scheduler)) != NULL) {  // REQUESTS LOOP
             int bytes = read(current_writer->fd, &move, sizeof(char));
             safe_exit("read", bytes < 0, shm_board, shm_sync, players_read_fds, players_count);
-                
+
             int is_valid_move_flag = is_valid_move(game_board, move, current_writer->player_index);
 
             sem_wait(&(game_sync->access_queue));  // Espera a que no haya lectores
@@ -112,41 +113,52 @@ int main(int argc, char *argv[]) {
             } else {
                 update_player(game_board, move, current_writer->player_index);
                 time(&last_valid_move_time);
+
+                // Imprimir tablero completo con un loop y usando fprintf
+                for (int i = 0; i < game_board->height; i++) {
+                    for (int j = 0; j < game_board->width; j++) {
+                        fprintf(log_file, "%d ", game_board->board[j + i * game_board->width]);
+                    }
+                    fprintf(log_file, "\n");
+                }
+
+                int players_without_moves = 0;
+                for (int i = 0; i < players_count; i++) {
+                    if (!has_valid_moves(game_board, i, log_file)) {
+                        players_without_moves++;
+                    }
+                }
+
+                if (players_without_moves == players_count) {
+                    game_board->game_has_finished = true;
+                    log_with_timestamp(log_file, "Exiting because of no more moves");
+                    sem_post(&(game_sync->game_state_access));  // Libera el recurso
+                    log_with_timestamp(log_file, "Recurso liberado");
+                    break;
+                }
             }
 
-        if (time(NULL) - last_valid_move_time > arguments.timeout) {
-            game_board->game_has_finished = true;
-            log_with_timestamp(log_file, "Exiting because of no valid moves in 10 seconds");
+            if (time(NULL) - last_valid_move_time > arguments.timeout) {
+                game_board->game_has_finished = true;
+                log_with_timestamp(log_file, "Exiting because of no valid moves in 10 seconds");
 
-            sem_post(&(game_sync->game_state_access));  // Libera el recurso
-            break;
-        }
-
-        int count = 0;
-        for (int i = 0, found = 0; i < players_count && found == 0; i++) {
-            if (!has_valid_moves(game_board, i)) {
-                count++;
-            } else {
-                found = 1;  // No hay necesidad de seguir contando
+                sem_post(&(game_sync->game_state_access));  // Libera el recurso
+                log_with_timestamp(log_file, "Recurso liberado");
+                break;
             }
-        }
-
-        if (count == players_count) {
-            game_board->game_has_finished = true;
-            log_with_timestamp(log_file, "Exiting because of no more moves");
-
-            sem_post(&(game_sync->game_state_access));  // Libera el recurso
-            break;
-        }
 
             // FIN SECCION ESCRITURA
 
             sem_post(&(game_sync->game_state_access));  // Libera el recurso
+        }  // END REQUESTS LOOP
+
+        if (game_board->game_has_finished) {
+            sem_post(&(game_sync->print_needed));  // Vista imprime estado final
+            break;
         }
     }  // MAIN LOOP ENDS ----------------------------------------------
 
-    sem_post(&(game_sync->print_needed));  // Vista imprime estado final
-    sem_wait(&(game_sync->print_done));
+    log_with_timestamp(log_file, "Exiting main loop");
 
     for (int i = 0; i < players_count; i++) {
         close(players_read_fds[i].fd);
@@ -196,7 +208,11 @@ void update_player(game_board_t *game_board, direction_t move, int player_index)
     game_board->players_list[player_index].y = y;
 }
 
-int has_valid_moves(game_board_t *game_board, int player_index) {
+int has_valid_moves(game_board_t *game_board, int player_index, FILE *log_file) {
+    // Log which player
+    char log_message[50];
+    snprintf(log_message, sizeof(log_message), "Checking moves for player %d", player_index);
+    log_with_timestamp(log_file, log_message);
     int x = game_board->players_list[player_index].x;
     int y = game_board->players_list[player_index].y;
 
@@ -204,6 +220,14 @@ int has_valid_moves(game_board_t *game_board, int player_index) {
         int new_x = x;
         int new_y = y;
         set_coordinates(&new_x, &new_y, i);
+
+        // log everything
+        snprintf(log_message, sizeof(log_message), "Checking move %d: (%d, %d)", i, new_x, new_y);
+        log_with_timestamp(log_file, log_message);
+
+        // log score of the cell
+        snprintf(log_message, sizeof(log_message), "Cell score: %d",
+                 game_board->board[new_x + new_y * game_board->width]);
 
         if (new_x >= 0 && new_y >= 0 && new_x < game_board->width && new_y < game_board->height &&
             game_board->board[new_x + new_y * game_board->width] > 0) {
@@ -290,7 +314,7 @@ int parse_childs(int argc, char *argv[], argument_t *arguments, requester_t play
 
                 players_read_fds[players_count].player_index = players_count;
                 players_read_fds[players_count++].fd = fd[0];
-                
+
                 close(fd[1]);
 
                 i++;

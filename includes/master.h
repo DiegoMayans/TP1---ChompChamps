@@ -32,7 +32,7 @@ void initialize_player_positions(game_board_t *game_board, int width, int height
 int is_valid_move(game_board_t *game_board, char move, int player_index);
 void set_coordinates(int *x, int *y, direction_t move);
 void update_player(game_board_t *game_board, direction_t move, int player_index);
-int has_valid_moves(game_board_t *game_board, int player_index);
+// int has_valid_moves(game_board_t *game_board, int player_index);
 void test_exit(const char *msg, int condition);
 void safe_exit(const char *msg, int condition, shm_adt shm_board, shm_adt shm_sync, requester_t fds[], int players_count);
 
