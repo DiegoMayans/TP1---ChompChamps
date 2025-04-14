@@ -43,8 +43,9 @@ round_robin_adt new_round_robin() {
 }
 
 static void assign_valid_key(round_robin_adt round_robin, requester_t* requester) {
-    if((round_robin->cant_keys % BLOCK) == 0)
-    	round_robin->valid_keys = realloc(round_robin->valid_keys, sizeof(struct requester_key) * (round_robin->cant_keys + BLOCK));
+    if((round_robin->cant_keys % BLOCK) == 0) {    	
+        round_robin->valid_keys = realloc(round_robin->valid_keys, sizeof(struct requester_key) * (round_robin->cant_keys + BLOCK));
+    }
 	struct requester_key new_key = {.id = round_robin->cant_keys++};
     round_robin->valid_keys[round_robin->cant_keys - 1] = new_key;
 	requester->id = &round_robin->valid_keys[round_robin->cant_keys - 1];

@@ -42,6 +42,7 @@ int main(int argc, char *argv[]) {
 
     pid_t pid_list[MAX_PLAYERS];
     int players_count = parse_childs(argc, argv, &arguments, players_read_fds, pid_list);
+    
 
     srand(arguments.seed);
     init_board(game_board, atoi(arguments.width), atoi(arguments.height), players_count, pid_list);
@@ -57,7 +58,11 @@ int main(int argc, char *argv[]) {
     time_t last_valid_move_time;
     time(&last_valid_move_time);
 
-    round_robin_adt scheduler = new_round_robin(players_read_fds, players_count);
+    round_robin_adt scheduler = new_round_robin();
+
+    for(int i = 0; i < players_count; i++) {
+        instantiate_requester(scheduler, &players_read_fds[i]);
+    }
 
     while (true) {  // MAIN LOOP------------------------------------------------
         sem_post(&game_sync->print_needed);
@@ -72,45 +77,42 @@ int main(int argc, char *argv[]) {
         }
 
         char move = -1;
-        int index = -1;
-        requester_t current_writer;
-        current_writer = pop(scheduler);
-        if (!(is_id_valid(current_writer))) {
-            int ready = select(max_fd + 1, &read_fds, NULL, NULL, &timeout);
-            if (ready == 0) {
-                game_board->game_has_finished = true;
-                break;
+        requester_t* current_writer = NULL;
+        int ready = select(max_fd + 1, &read_fds, NULL, NULL, &timeout);
+        char message[50];
+        snprintf(message, sizeof(message), "Unblocking, ready: %d", ready);
+        log_with_timestamp(log_file, message);
+        if (ready == 0) {
+            game_board->game_has_finished = true;
+            log_with_timestamp(log_file, "Exiting because of timeout");
+
+            break;
+        }
+        safe_exit("select", ready < 0, shm_board, shm_sync, players_read_fds, players_count);
+        for (int i = 0; i < players_count; i++) {
+            if (FD_ISSET(players_read_fds[i].fd, &read_fds)) {
+                push(scheduler, &players_read_fds[i]);
             }
-            safe_exit("select", ready < 0, shm_board, shm_sync, players_read_fds, players_count);
-            for (int i = 0; i < players_count; i++) {
-                if (FD_ISSET(players_read_fds[i].fd, &read_fds)) {
-                    push_request(scheduler, players_read_fds[i]);
-                }
-            }
-        } else {
-            for (int i = 0; i < players_count && index == -1; i++) {
-                if (equals(current_writer, players_read_fds[i])) {
-                    index = i;
-                }
-            }
-            int bytes = read(players_read_fds[index].fd, &move, sizeof(char));
+        }
+        while((current_writer = pop(scheduler)) != NULL) {
+            int bytes = read(current_writer->fd, &move, sizeof(char));
             safe_exit("read", bytes < 0, shm_board, shm_sync, players_read_fds, players_count);
-        }
-        int is_valid_move_flag = is_valid_move(game_board, move, index);
+                
+            int is_valid_move_flag = is_valid_move(game_board, move, current_writer->player_index);
 
-        sem_wait(&(game_sync->access_queue));  // Espera a que no haya lectores
+            sem_wait(&(game_sync->access_queue));  // Espera a que no haya lectores
 
-        sem_wait(&(game_sync->game_state_access));  // Toma el recurso
+            sem_wait(&(game_sync->game_state_access));  // Toma el recurso
 
-        sem_post(&(game_sync->access_queue));  // Libera la cola
+            sem_post(&(game_sync->access_queue));  // Libera la cola
 
-        // SECCION ESCRITURA
-        if (!is_valid_move_flag) {
-            game_board->players_list[index].invalid_move_req_count++;
-        } else {
-            update_player(game_board, move, index);
-            time(&last_valid_move_time);
-        }
+            // SECCION ESCRITURA
+            if (!is_valid_move_flag) {
+                game_board->players_list[current_writer->player_index].invalid_move_req_count++;
+            } else {
+                update_player(game_board, move, current_writer->player_index);
+                time(&last_valid_move_time);
+            }
 
         if (time(NULL) - last_valid_move_time > arguments.timeout) {
             game_board->game_has_finished = true;
@@ -137,9 +139,10 @@ int main(int argc, char *argv[]) {
             break;
         }
 
-        // FIN SECCION ESCRITURA
+            // FIN SECCION ESCRITURA
 
-        sem_post(&(game_sync->game_state_access));  // Libera el recurso
+            sem_post(&(game_sync->game_state_access));  // Libera el recurso
+        }
     }  // MAIN LOOP ENDS ----------------------------------------------
 
     sem_post(&(game_sync->print_needed));  // Vista imprime estado final
@@ -285,7 +288,9 @@ int parse_childs(int argc, char *argv[], argument_t *arguments, requester_t play
                 pid_t pid = create_process(argv[i], arguments->height, arguments->width, fd, 1);
                 pid_list[players_count] = pid;
 
+                players_read_fds[players_count].player_index = players_count;
                 players_read_fds[players_count++].fd = fd[0];
+                
                 close(fd[1]);
 
                 i++;
