@@ -1,4 +1,0 @@
-pvs-studio.com/en/docs/warnings/	1	err	Help: The documentation for all analyzer warnings is available here: https://pvs-studio.com/en/docs/warnings/.
-/root/src/master.c	1	err	V009 To use free version of PVS-Studio, source code files are required to start with a special comment.
-/root/src/round_robin_adt.c	1	err	V009 To use free version of PVS-Studio, source code files are required to start with a special comment.
-/root/src/shm_adt.c	1	err	V009 To use free version of PVS-Studio, source code files are required to start with a special comment.

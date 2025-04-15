@@ -2,6 +2,7 @@
 // PVS-Studio Static Code Analyzer for C, C++, C#, and Java: http://www.viva64.com
 
 int main(void) {
-    while (1);
+    while (1)
+        ;
     return 0;
 }

@@ -119,7 +119,7 @@ int main(int argc, char *argv[]) {
             // FIN SECCION ESCRITURA
 
             sem_post(&(game_sync->game_state_access));  // Libera el recurso
-        }  // END REQUESTS LOOP
+        }                                               // END REQUESTS LOOP
 
         if (game_board->game_has_finished) {
             sem_post(&(game_sync->print_needed));  // Vista imprime estado final
@@ -135,7 +135,8 @@ int main(int argc, char *argv[]) {
     shm_close(shm_board);
     shm_close(shm_sync);
 
-    while (wait(NULL) > 0);
+    while (wait(NULL) > 0)
+        ;
 
     exit(EXIT_SUCCESS);
 }  // END MAIN
