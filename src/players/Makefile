@@ -14,7 +14,7 @@ all: $(BINARIES)
 
 $(BIN_DIR)/%: $(PLAYERS_DIR)/%.c
 	@mkdir -p $(BIN_DIR)
-	$(CC) $(CFLAGS) $< $(SRC_DIR)/shm_adt.c -o $@ $(LDFLAGS)
+	$(CC) $(CFLAGS) $< $(SRC_DIR)/shm_adt.c $(SRC_DIR)/shared.c -o $@ $(LDFLAGS)
 
 clean:
 	rm -rf $(BIN_DIR)

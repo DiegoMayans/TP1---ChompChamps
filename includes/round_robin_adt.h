@@ -20,5 +20,7 @@ int push(round_robin_adt round_robin, requester_t* requester);
 requester_t* pop(round_robin_adt round_robin);
 // In order to use a requester it must be first instantiated
 void instantiate_requester(round_robin_adt round_robin, requester_t* requester);
+// Free round robin
+void free_round_robin(round_robin_adt round_robin);
 
 #endif

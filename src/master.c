@@ -3,8 +3,7 @@
 #include <time.h>
 #include <valgrind/valgrind.h>
 
-int has_valid_moves(game_board_t *game_board, int player_index, FILE *log_file);
-
+/* Logging Function */
 void log_with_timestamp(FILE *log_file, const char *message) {
     time_t now = time(NULL);
     struct tm *local_time = localtime(&now);
@@ -13,9 +12,10 @@ void log_with_timestamp(FILE *log_file, const char *message) {
     strftime(timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M:%S", local_time);
 
     fprintf(log_file, "[%s] %s\n", timestamp, message);
-    fflush(log_file);  // Ensure the log is written immediately
+    fflush(log_file);
 }
 
+/* Main Function */
 int main(int argc, char *argv[]) {
     FILE *log_file = fopen("master.log", "w");
     if (!log_file) {
@@ -25,45 +25,39 @@ int main(int argc, char *argv[]) {
     log_with_timestamp(log_file, "Iniciando el proceso maestro");
 
     requester_t players_read_fds[MAX_PLAYERS];
+    pid_t pid_list[MAX_PLAYERS];
 
     argument_t arguments = {"10", "10", 200, 10, time(NULL)};
+    game_board_t *game_board = NULL;
+    game_sync_t *game_sync = NULL;
 
     parse_arguments(&arguments, argc, argv);
 
     shm_adt shm_board = shm_create(GAME_STATE_PATH,
                                    sizeof(game_board_t) + sizeof(int) * atoi(arguments.width) * atoi(arguments.height));
-    game_board_t *game_board = shm_get_game_board(shm_board);
+    game_board = shm_get_game_board(shm_board);
     test_exit("Error: No se pudo crear la memoria compartida", game_board == NULL);
 
     shm_adt shm_sync = shm_create(GAME_SYNC_PATH, sizeof(game_sync_t));
-    game_sync_t *game_sync = shm_get_game_sync(shm_sync);
+    game_sync = shm_get_game_sync(shm_sync);
     if (!game_sync) {
         shm_close(shm_board);
         test_exit("Error: No se pudo crear la memoria compartida", true);
     }
 
-    pid_t pid_list[MAX_PLAYERS];
     int players_count = parse_childs(argc, argv, &arguments, players_read_fds, pid_list);
 
     srand(arguments.seed);
     init_board(game_board, atoi(arguments.width), atoi(arguments.height), players_count, pid_list);
     init_sync(game_sync);
 
-    fd_set read_fds;
-    int max_fd = 0;
-
-    struct timeval timeout;
-    timeout.tv_sec = arguments.timeout;
-    timeout.tv_usec = 0;
-
-    time_t last_valid_move_time;
-    time(&last_valid_move_time);
-
     round_robin_adt scheduler = new_round_robin();
-
     for (int i = 0; i < players_count; i++) {
         instantiate_requester(scheduler, &players_read_fds[i]);
     }
+
+    time_t last_valid_move_time;
+    time(&last_valid_move_time);
 
     while (true) {  // MAIN LOOP------------------------------------------------
         sem_post(&game_sync->print_needed);
@@ -71,7 +65,10 @@ int main(int argc, char *argv[]) {
 
         usleep(arguments.delay * 1000);
 
+        fd_set read_fds;
         FD_ZERO(&read_fds);
+        int max_fd = 0;
+
         for (int i = 0; i < players_count; i++) {
             FD_SET(players_read_fds[i].fd, &read_fds);
             max_fd = players_read_fds[i].fd > max_fd ? players_read_fds[i].fd : max_fd;
@@ -79,12 +76,15 @@ int main(int argc, char *argv[]) {
 
         char move = -1;
         requester_t *current_writer = NULL;
+
+        struct timeval timeout = {arguments.timeout, 0};
         int ready = select(max_fd + 1, &read_fds, NULL, NULL, &timeout);
+
         if (ready == 0) {
             game_board->game_has_finished = true;
             log_with_timestamp(log_file, "Exiting because of timeout");
 
-            sem_post(&(game_sync->print_needed));  
+            sem_post(&(game_sync->print_needed));
             break;
         }
         safe_exit("select", ready < 0, shm_board, shm_sync, players_read_fds, players_count);
@@ -114,17 +114,9 @@ int main(int argc, char *argv[]) {
                 update_player(game_board, move, current_writer->player_index);
                 time(&last_valid_move_time);
 
-                // Imprimir tablero completo con un loop y usando fprintf
-                for (int i = 0; i < game_board->height; i++) {
-                    for (int j = 0; j < game_board->width; j++) {
-                        fprintf(log_file, "%d ", game_board->board[j + i * game_board->width]);
-                    }
-                    fprintf(log_file, "\n");
-                }
-
                 int players_without_moves = 0;
                 for (int i = 0; i < players_count; i++) {
-                    if (!has_valid_moves(game_board, i, log_file)) {
+                    if (!has_valid_moves(game_board, i)) {
                         players_without_moves++;
                     }
                 }
@@ -133,7 +125,6 @@ int main(int argc, char *argv[]) {
                     game_board->game_has_finished = true;
                     log_with_timestamp(log_file, "Exiting because of no more moves");
                     sem_post(&(game_sync->game_state_access));  // Libera el recurso
-                    log_with_timestamp(log_file, "Recurso liberado");
                     break;
                 }
             }
@@ -143,7 +134,6 @@ int main(int argc, char *argv[]) {
                 log_with_timestamp(log_file, "Exiting because of no valid moves in 10 seconds");
 
                 sem_post(&(game_sync->game_state_access));  // Libera el recurso
-                log_with_timestamp(log_file, "Recurso liberado");
                 break;
             }
 
@@ -158,11 +148,11 @@ int main(int argc, char *argv[]) {
         }
     }  // MAIN LOOP ENDS ----------------------------------------------
 
-    log_with_timestamp(log_file, "Exiting main loop");
-
     for (int i = 0; i < players_count; i++) {
         close(players_read_fds[i].fd);
     }
+
+    free_round_robin(scheduler);
     shm_close(shm_board);
     shm_close(shm_sync);
     fclose(log_file);
@@ -171,6 +161,31 @@ int main(int argc, char *argv[]) {
 
     exit(EXIT_SUCCESS);
 }  // END MAIN
+
+/* Function Definitions */
+
+void initialize_game(game_board_t **game_board, game_sync_t **game_sync, argument_t *arguments, int argc, char *argv[],
+                     requester_t players_read_fds[], pid_t pid_list[], int *players_count, FILE *log_file) {
+    parse_arguments(arguments, argc, argv);
+
+    shm_adt shm_board = shm_create(
+        GAME_STATE_PATH, sizeof(game_board_t) + sizeof(int) * atoi(arguments->width) * atoi(arguments->height));
+    *game_board = shm_get_game_board(shm_board);
+    test_exit("Error: No se pudo crear la memoria compartida", *game_board == NULL);
+
+    shm_adt shm_sync = shm_create(GAME_SYNC_PATH, sizeof(game_sync_t));
+    *game_sync = shm_get_game_sync(shm_sync);
+    if (!*game_sync) {
+        shm_close(shm_board);
+        test_exit("Error: No se pudo crear la memoria compartida", true);
+    }
+
+    *players_count = parse_childs(argc, argv, arguments, players_read_fds, pid_list);
+
+    srand(arguments->seed);
+    init_board(*game_board, atoi(arguments->width), atoi(arguments->height), *players_count, pid_list);
+    init_sync(*game_sync);
+}
 
 /* GAME FUNCTIONS */
 
@@ -183,11 +198,11 @@ int is_valid_move(game_board_t *game_board, char move, int player_index) {
     int y = game_board->players_list[player_index].y;
     set_coordinates(&x, &y, move);
 
-    if (x < 0 || x >= game_board->width || y < 0 || y >= game_board->height) {  // Check colision con borde
+    if (x < 0 || x >= game_board->width || y < 0 || y >= game_board->height) {
         return 0;
     }
 
-    if (game_board->board[x + y * game_board->width] <= 0) {  // Check colision con player
+    if (game_board->board[x + y * game_board->width] <= 0) {
         return 0;
     }
 
@@ -208,11 +223,7 @@ void update_player(game_board_t *game_board, direction_t move, int player_index)
     game_board->players_list[player_index].y = y;
 }
 
-int has_valid_moves(game_board_t *game_board, int player_index, FILE *log_file) {
-    // Log which player
-    char log_message[50];
-    snprintf(log_message, sizeof(log_message), "Checking moves for player %d", player_index);
-    log_with_timestamp(log_file, log_message);
+int has_valid_moves(game_board_t *game_board, int player_index) {
     int x = game_board->players_list[player_index].x;
     int y = game_board->players_list[player_index].y;
 
@@ -220,14 +231,6 @@ int has_valid_moves(game_board_t *game_board, int player_index, FILE *log_file) 
         int new_x = x;
         int new_y = y;
         set_coordinates(&new_x, &new_y, i);
-
-        // log everything
-        snprintf(log_message, sizeof(log_message), "Checking move %d: (%d, %d)", i, new_x, new_y);
-        log_with_timestamp(log_file, log_message);
-
-        // log score of the cell
-        snprintf(log_message, sizeof(log_message), "Cell score: %d",
-                 game_board->board[new_x + new_y * game_board->width]);
 
         if (new_x >= 0 && new_y >= 0 && new_x < game_board->width && new_y < game_board->height &&
             game_board->board[new_x + new_y * game_board->width] > 0) {
@@ -336,14 +339,6 @@ int parse_childs(int argc, char *argv[], argument_t *arguments, requester_t play
     test_exit("Error: se requiere por lo menos un jugador\n", players_count < 1);
 
     return players_count;
-}
-
-void set_coordinates(int *x, int *y, direction_t move) {
-    static const int dx[] = {0, 1, 1, 1, 0, -1, -1, -1};
-    static const int dy[] = {-1, -1, 0, 1, 1, 1, 0, -1};
-
-    *x += dx[move];
-    *y += dy[move];
 }
 
 void test_exit(const char *msg, int condition) {
