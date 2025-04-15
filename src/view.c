@@ -120,17 +120,17 @@ void print_winner_and_stats(game_board_t *board) {
 
     if (winner != -1) {
         printf("\n");
-        printf("========================================================\n");
-        printf("             FELICIDADES, JUGADOR %d!            \n", winner);
-        printf("          Ganaste el juego con %d puntos.        \n", max_score);
-        printf("========================================================\n");
+        printf("=============================================================\n");
+        printf("                  FELICIDADES, JUGADOR %d!            \n", winner);
+        printf("              Ganaste el juego con %d puntos.         \n", max_score);
+        printf("=============================================================\n");
         printf("\n");
     } else {
         printf("\n");
-        printf("========================================================\n");
-        printf("               ¡EMPATE ENTRE JUGADORES!            \n");
-        printf("               empataron con %d puntos.         \n", max_score);
-        printf("========================================================\n");
+        printf("=============================================================\n");
+        printf("                    ¡EMPATE ENTRE JUGADORES!            \n");
+        printf("                    empataron con %d puntos.         \n", max_score);
+        printf("=============================================================\n");
         printf("\n");
     }
 
@@ -181,5 +181,5 @@ void print_winner_and_stats(game_board_t *board) {
         printf(" %d° Jugador %d — %2d pts | Válidos: %d | Inválidos: %d\n", i + 1, idx, board->players_list[idx].score,
                board->players_list[idx].move_req_count, board->players_list[idx].invalid_move_req_count);
     }
-    printf("==============================================================\n\n");
+    printf("=============================================================\n\n");
 }
