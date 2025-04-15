@@ -337,19 +337,3 @@ void edge_case_test_round_robin() {
     // Free resources
     free_round_robin(rr);
 }
-
-int main() {
-    clock_t start, end;
-
-    // Run stress test
-    start = clock();
-    stress_test_round_robin();
-    end = clock();
-    printf("Stress test completed in %.2f seconds.\n", (double)(end - start) / CLOCKS_PER_SEC);
-
-    // Run edge case tests
-    edge_case_test_round_robin();
-
-    printf("All tests completed successfully.\n");
-    return 0;
-}
