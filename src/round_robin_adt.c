@@ -42,14 +42,59 @@ round_robin_adt new_round_robin() {
     return new;
 }
 
-static void assign_valid_key(round_robin_adt round_robin, requester_t* requester) {
-    if((round_robin->cant_keys % BLOCK) == 0) {    	
-        round_robin->valid_keys = realloc(round_robin->valid_keys, sizeof(struct requester_key) * (round_robin->cant_keys + BLOCK));
+void print_request_list(round_robin_adt round_robin) {
+    struct request_t* current = round_robin->requests_first;
+    while (current != NULL) {
+        printf("Requester ID: %d, Requests Amount: %d\n", current->requester->id->id, current->requests_amount);
+        current = current->request_next;
     }
-	struct requester_key new_key = {.id = round_robin->cant_keys++};
-    round_robin->valid_keys[round_robin->cant_keys - 1] = new_key;
-	requester->id = &round_robin->valid_keys[round_robin->cant_keys - 1];
 }
+void print_priority_list(round_robin_adt round_robin) {
+    struct request_t* current = round_robin->priority_first;
+    while (current != NULL) {
+        printf("Requester ID: %d, Requests Amount: %d\n", current->requester->id->id, current->requests_amount);
+        current = current->priority_next;
+    }
+}
+
+void print_lists(round_robin_adt round_robin) {
+    printf("Request List:\n");
+    print_request_list(round_robin);
+    printf("Priority List:\n");
+    print_priority_list(round_robin);
+}
+
+static void assign_valid_key(round_robin_adt round_robin, requester_t *requester) {
+    // Check if we need to grow the valid_keys array.
+    if ((round_robin->cant_keys % BLOCK) == 0) {
+        size_t old_count = round_robin->cant_keys;
+        struct requester_key* old_valid_keys = round_robin->valid_keys;
+        round_robin->valid_keys = realloc(round_robin->valid_keys, sizeof(struct requester_key) * (old_count + BLOCK));
+        if (round_robin->valid_keys == NULL) {
+            perror("Realloc failed");
+            exit(EXIT_FAILURE);
+        }
+        // If valid_keys moved, update all stored pointers.
+        if (old_valid_keys != round_robin->valid_keys) {
+            struct request_t* current = round_robin->priority_first;
+            while (current != NULL) {
+                int id_index = current->requester->id->id;
+                current->requester->id = &round_robin->valid_keys[id_index];
+                current = current->priority_next;
+            }
+        }
+    }
+    
+    // Use the current cant_keys as the index for the new key.
+    int new_index = round_robin->cant_keys;
+    // Create and store the new key.
+    round_robin->valid_keys[new_index].id = new_index;
+    
+    // Set the requester->id pointer to the address within valid_keys.
+    requester->id = &round_robin->valid_keys[new_index];
+    round_robin->cant_keys++;
+}
+
 
 	// In order to use a requester it must be first instantiated
 void instantiate_requester(round_robin_adt round_robin, requester_t* requester) {
@@ -173,10 +218,7 @@ requester_t* pop(round_robin_adt round_robin) {
 
     // Priority list management
     if (to_return->priority_next != NULL) {
-        // If there only was 1 element, and it had more than 1 request, we need for it to keep at priority_next
-        if(to_return->priority_next == NULL) {
-            round_robin->priority_first = to_return->priority_next;
-        }
+        round_robin->priority_first = to_return->priority_next;
         round_robin->priority_last->priority_next = to_return;
     }
     round_robin->priority_last = to_return;
@@ -197,7 +239,117 @@ void free_round_robin(round_robin_adt round_robin) {
     struct request_t* current = round_robin->priority_first;
     free_helper(round_robin, current);
 
-    // Liberar el arreglo de valid_keys
     free(round_robin->valid_keys);
     free(round_robin);
+}
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+
+#define LARGE_TEST_SIZE 100 // Number of requesters for stress testing
+
+void stress_test_round_robin() {
+    printf("Starting stress test...\n");
+    round_robin_adt rr = new_round_robin();
+    if (rr == NULL) {
+        fprintf(stderr, "Failed to create round_robin_adt\n");
+        exit(EXIT_FAILURE);
+    }
+
+    // Create a large number of requesters
+    requester_t *req = malloc(sizeof(requester_t) * LARGE_TEST_SIZE);
+    if (req == NULL) {
+        perror("Failed to allocate memory for requesters");
+        exit(EXIT_FAILURE);
+    }
+
+    for (int i = 0; i < LARGE_TEST_SIZE; i++) {
+        req[i].fd = i;
+        req[i].player_index = i;
+        instantiate_requester(rr, &req[i]);
+    }
+
+    // Push all requesters into the round-robin
+    for (int i = 0; i < LARGE_TEST_SIZE; i++) {
+        push(rr, &req[i]);
+    }
+
+    // Pop all requesters and verify the order
+    for (int i = 0; i < LARGE_TEST_SIZE; i++) {
+        requester_t *popped = pop(rr);
+        if (popped != &req[i]) {
+            fprintf(stderr, "Error: Expected requester %d, but got %d\n", req[i].fd, popped->fd);
+            free(req);
+            free_round_robin(rr);
+            exit(EXIT_FAILURE);
+        }
+    }
+
+    printf("Stress test passed successfully.\n");
+
+    // Free resources
+    free(req);
+    free_round_robin(rr);
+}
+
+void edge_case_test_round_robin() {
+    printf("Starting edge case tests...\n");
+    round_robin_adt rr = new_round_robin();
+    if (rr == NULL) {
+        fprintf(stderr, "Failed to create round_robin_adt\n");
+        exit(EXIT_FAILURE);
+    }
+
+    // Test popping from an empty round-robin
+    requester_t *popped = pop(rr);
+    if (popped != NULL) {
+        fprintf(stderr, "Error: Expected NULL when popping from an empty round-robin\n");
+        free_round_robin(rr);
+        exit(EXIT_FAILURE);
+    }
+
+    // Test pushing duplicate requesters
+    requester_t req;
+    req.fd = 1;
+    req.player_index = 1;
+    instantiate_requester(rr, &req);
+
+    push(rr, &req);
+    push(rr, &req); // Push the same requester again
+
+    popped = pop(rr);
+    if (popped != &req) {
+        fprintf(stderr, "Error: Expected requester %d, but got %d\n", req.fd, popped->fd);
+        free_round_robin(rr);
+        exit(EXIT_FAILURE);
+    }
+
+    popped = pop(rr);
+    if (popped != NULL) {
+        fprintf(stderr, "Error: Expected NULL after popping all requesters\n");
+        free_round_robin(rr);
+        exit(EXIT_FAILURE);
+    }
+
+    printf("Edge case tests passed successfully.\n");
+
+    // Free resources
+    free_round_robin(rr);
+}
+
+int main() {
+    clock_t start, end;
+
+    // Run stress test
+    start = clock();
+    stress_test_round_robin();
+    end = clock();
+    printf("Stress test completed in %.2f seconds.\n", (double)(end - start) / CLOCKS_PER_SEC);
+
+    // Run edge case tests
+    edge_case_test_round_robin();
+
+    printf("All tests completed successfully.\n");
+    return 0;
 }
