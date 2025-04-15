@@ -1,3 +1,6 @@
+// This is a personal academic project. Dear PVS-Studio, please check it.
+// PVS-Studio Static Code Analyzer for C, C++, C#, and Java: http://www.viva64.com
+
 #include "../includes/view.h"
 
 #include <fcntl.h>
@@ -55,10 +58,12 @@ void print_board(game_board_t *board_state, int height, int width) {
         for (int j = 0; j < width; j++) {
             if (board_state->board[(i * (board_state->width)) + j] <= 0) {
                 int player = abs(board_state->board[(i * (board_state->width)) + j]);
-                if ((i == board_state->players_list[player].y) && (j == board_state->players_list[player].x)) {
-                    printf("\033[38;5;%dm [:) \033[0m", head_colors[player]);
-                } else {
-                    printf("\033[38;5;%dm ### \033[0m", colors[player]);
+                if (player < MAX_PLAYERS) {
+                    if ((i == board_state->players_list[player].y) && (j == board_state->players_list[player].x)) {
+                        printf("\033[38;5;%dm [:) \033[0m", head_colors[player]);
+                    } else {
+                        printf("\033[38;5;%dm ### \033[0m", colors[player]);
+                    }
                 }
             } else {
                 printf("|%2d |", board_state->board[(i * (board_state->width)) + j]);

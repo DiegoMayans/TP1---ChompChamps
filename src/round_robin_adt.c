@@ -1,14 +1,17 @@
-#include <sys/mman.h>
-#include <stdlib.h>
-#include <stdbool.h>
-#include <stdio.h>
+// This is a personal academic project. Dear PVS-Studio, please check it.
+// PVS-Studio Static Code Analyzer for C, C++, C#, and Java: http://www.viva64.com
 
 #include "../includes/round_robin_adt.h"
+
+#include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/mman.h>
 
 #define BLOCK 10
 
 struct requester_key {
-    int id; // >= 0
+    int id;  // >= 0
 };
 
 struct request_t {
@@ -28,17 +31,17 @@ struct round_robin_cdt {
 };
 
 round_robin_adt new_round_robin() {
-    round_robin_adt new = (round_robin_adt) malloc(sizeof(struct round_robin_cdt));
-    new->valid_keys = NULL;
-    new->cant_keys = 0;
-	new->priority_first = NULL;
-	new->priority_last = NULL;
-	new->requests_first = NULL;
-	new->requests_last = NULL;
+    round_robin_adt new = (round_robin_adt)malloc(sizeof(struct round_robin_cdt));
     if (new == NULL) {
         perror("Memory allocation failed");
         return NULL;
     }
+    new->valid_keys = NULL;
+    new->cant_keys = 0;
+    new->priority_first = NULL;
+    new->priority_last = NULL;
+    new->requests_first = NULL;
+    new->requests_last = NULL;
     return new;
 }
 
@@ -64,13 +67,15 @@ void print_lists(round_robin_adt round_robin) {
     print_priority_list(round_robin);
 }
 
-static void assign_valid_key(round_robin_adt round_robin, requester_t *requester) {
+static void assign_valid_key(round_robin_adt round_robin, requester_t* requester) {
     // Check if we need to grow the valid_keys array.
     if ((round_robin->cant_keys % BLOCK) == 0) {
         size_t old_count = round_robin->cant_keys;
         struct requester_key* old_valid_keys = round_robin->valid_keys;
-        round_robin->valid_keys = realloc(round_robin->valid_keys, sizeof(struct requester_key) * (old_count + BLOCK));
-        if (round_robin->valid_keys == NULL) {
+        void* temp = realloc(round_robin->valid_keys, sizeof(struct requester_key) * (old_count + BLOCK));
+        if (temp) {
+            round_robin->valid_keys = temp;
+        } else {
             perror("Realloc failed");
             exit(EXIT_FAILURE);
         }
@@ -84,26 +89,23 @@ static void assign_valid_key(round_robin_adt round_robin, requester_t *requester
             }
         }
     }
-    
+
     // Use the current cant_keys as the index for the new key.
     int new_index = round_robin->cant_keys;
     // Create and store the new key.
     round_robin->valid_keys[new_index].id = new_index;
-    
+
     // Set the requester->id pointer to the address within valid_keys.
     requester->id = &round_robin->valid_keys[new_index];
     round_robin->cant_keys++;
 }
 
-
-	// In order to use a requester it must be first instantiated
+// In order to use a requester it must be first instantiated
 void instantiate_requester(round_robin_adt round_robin, requester_t* requester) {
     assign_valid_key(round_robin, requester);
 }
 
-bool equals(requester_t* req1, requester_t* req2) {
-    return (req1->id->id - req2->id->id) == 0;
-}
+bool equals(requester_t* req1, requester_t* req2) { return (req1->id->id - req2->id->id) == 0; }
 
 // If found, return the request_t node corresponding to the requester. If not, return NULL
 static struct request_t* find_requester(round_robin_adt round_robin, requester_t* requester) {
@@ -138,7 +140,7 @@ static bool has_priority(requester_t* incoming, requester_t* active, round_robin
 
 // Associates requester to a request node
 static struct request_t* create_node(round_robin_adt round_robin, requester_t* requester) {
-    struct request_t* new = (struct request_t*) malloc(sizeof(struct request_t));
+    struct request_t* new = (struct request_t*)malloc(sizeof(struct request_t));
     if (new == NULL) {
         perror("Memory allocation failed");
         return NULL;
@@ -209,8 +211,7 @@ requester_t* pop(round_robin_adt round_robin) {
     round_robin->requests_first = to_return->request_next;
     if (--to_return->requests_amount > 0) {
         // If there only was 1 element, and it had more than 1 request, we need for it to keep at request_first
-        if (to_return->request_next == NULL)
-            round_robin->requests_first = to_return;
+        if (to_return->request_next == NULL) round_robin->requests_first = to_return;
         round_robin->requests_last->request_next = to_return;
         round_robin->requests_last = to_return;
     }
@@ -230,7 +231,7 @@ requester_t* pop(round_robin_adt round_robin) {
 static void free_helper(round_robin_adt round_robin, struct request_t* current) {
     if (current != NULL)
         free_helper(round_robin, current->priority_next);
-    else 
+    else
         return;
     free(current);
 }
@@ -247,7 +248,7 @@ void free_round_robin(round_robin_adt round_robin) {
 #include <stdlib.h>
 #include <time.h>
 
-#define LARGE_TEST_SIZE 100 // Number of requesters for stress testing
+#define LARGE_TEST_SIZE 100  // Number of requesters for stress testing
 
 void stress_test_round_robin() {
     printf("Starting stress test...\n");
@@ -258,7 +259,7 @@ void stress_test_round_robin() {
     }
 
     // Create a large number of requesters
-    requester_t *req = malloc(sizeof(requester_t) * LARGE_TEST_SIZE);
+    requester_t* req = malloc(sizeof(requester_t) * LARGE_TEST_SIZE);
     if (req == NULL) {
         perror("Failed to allocate memory for requesters");
         exit(EXIT_FAILURE);
@@ -277,7 +278,7 @@ void stress_test_round_robin() {
 
     // Pop all requesters and verify the order
     for (int i = 0; i < LARGE_TEST_SIZE; i++) {
-        requester_t *popped = pop(rr);
+        requester_t* popped = pop(rr);
         if (popped != &req[i]) {
             fprintf(stderr, "Error: Expected requester %d, but got %d\n", req[i].fd, popped->fd);
             free(req);
@@ -302,7 +303,7 @@ void edge_case_test_round_robin() {
     }
 
     // Test popping from an empty round-robin
-    requester_t *popped = pop(rr);
+    requester_t* popped = pop(rr);
     if (popped != NULL) {
         fprintf(stderr, "Error: Expected NULL when popping from an empty round-robin\n");
         free_round_robin(rr);
@@ -316,7 +317,7 @@ void edge_case_test_round_robin() {
     instantiate_requester(rr, &req);
 
     push(rr, &req);
-    push(rr, &req); // Push the same requester again
+    push(rr, &req);  // Push the same requester again
 
     popped = pop(rr);
     if (popped != &req) {

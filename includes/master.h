@@ -10,6 +10,7 @@
 #include <sys/wait.h>
 #include <time.h>
 #include <unistd.h>
+#include <valgrind/valgrind.h>
 
 #include "../includes/defs.h"
 #include "../includes/round_robin_adt.h"

@@ -1,29 +1,10 @@
+// This is a personal academic project. Dear PVS-Studio, please check it.
+// PVS-Studio Static Code Analyzer for C, C++, C#, and Java: http://www.viva64.com
+
 #include "../includes/master.h"
-
-#include <time.h>
-#include <valgrind/valgrind.h>
-
-/* Logging Function */
-void log_with_timestamp(FILE *log_file, const char *message) {
-    time_t now = time(NULL);
-    struct tm *local_time = localtime(&now);
-
-    char timestamp[20];
-    strftime(timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M:%S", local_time);
-
-    fprintf(log_file, "[%s] %s\n", timestamp, message);
-    fflush(log_file);
-}
 
 /* Main Function */
 int main(int argc, char *argv[]) {
-    FILE *log_file = fopen("master.log", "w");
-    if (!log_file) {
-        perror("Error al abrir el archivo de log");
-        exit(EXIT_FAILURE);
-    }
-    log_with_timestamp(log_file, "Iniciando el proceso maestro");
-
     requester_t players_read_fds[MAX_PLAYERS];
     pid_t pid_list[MAX_PLAYERS];
 
@@ -82,7 +63,6 @@ int main(int argc, char *argv[]) {
 
         if (ready == 0) {
             game_board->game_has_finished = true;
-            log_with_timestamp(log_file, "Exiting because of timeout");
 
             sem_post(&(game_sync->print_needed));
             break;
@@ -123,7 +103,7 @@ int main(int argc, char *argv[]) {
 
                 if (players_without_moves == players_count) {
                     game_board->game_has_finished = true;
-                    log_with_timestamp(log_file, "Exiting because of no more moves");
+
                     sem_post(&(game_sync->game_state_access));  // Libera el recurso
                     break;
                 }
@@ -131,7 +111,6 @@ int main(int argc, char *argv[]) {
 
             if (time(NULL) - last_valid_move_time > arguments.timeout) {
                 game_board->game_has_finished = true;
-                log_with_timestamp(log_file, "Exiting because of no valid moves in 10 seconds");
 
                 sem_post(&(game_sync->game_state_access));  // Libera el recurso
                 break;
@@ -155,60 +134,13 @@ int main(int argc, char *argv[]) {
     free_round_robin(scheduler);
     shm_close(shm_board);
     shm_close(shm_sync);
-    fclose(log_file);
 
     while (wait(NULL) > 0);
 
     exit(EXIT_SUCCESS);
 }  // END MAIN
 
-/* Function Definitions */
-
-void initialize_game(game_board_t **game_board, game_sync_t **game_sync, argument_t *arguments, int argc, char *argv[],
-                     requester_t players_read_fds[], pid_t pid_list[], int *players_count, FILE *log_file) {
-    parse_arguments(arguments, argc, argv);
-
-    shm_adt shm_board = shm_create(
-        GAME_STATE_PATH, sizeof(game_board_t) + sizeof(int) * atoi(arguments->width) * atoi(arguments->height));
-    *game_board = shm_get_game_board(shm_board);
-    test_exit("Error: No se pudo crear la memoria compartida", *game_board == NULL);
-
-    shm_adt shm_sync = shm_create(GAME_SYNC_PATH, sizeof(game_sync_t));
-    *game_sync = shm_get_game_sync(shm_sync);
-    if (!*game_sync) {
-        shm_close(shm_board);
-        test_exit("Error: No se pudo crear la memoria compartida", true);
-    }
-
-    *players_count = parse_childs(argc, argv, arguments, players_read_fds, pid_list);
-
-    srand(arguments->seed);
-    init_board(*game_board, atoi(arguments->width), atoi(arguments->height), *players_count, pid_list);
-    init_sync(*game_sync);
-}
-
 /* GAME FUNCTIONS */
-
-int is_valid_move(game_board_t *game_board, char move, int player_index) {
-    if (move < MIN_MOVE || move > MAX_MOVE) {
-        return 0;
-    }
-
-    int x = game_board->players_list[player_index].x;
-    int y = game_board->players_list[player_index].y;
-    set_coordinates(&x, &y, move);
-
-    if (x < 0 || x >= game_board->width || y < 0 || y >= game_board->height) {
-        return 0;
-    }
-
-    if (game_board->board[x + y * game_board->width] <= 0) {
-        return 0;
-    }
-
-    return 1;
-}
-
 void update_player(game_board_t *game_board, direction_t move, int player_index) {
     int x = game_board->players_list[player_index].x;
     int y = game_board->players_list[player_index].y;
@@ -287,10 +219,12 @@ void parse_arguments(argument_t *arguments, int argc, char *argv[]) {
     for (int i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "-h") && i + 1 < argc) {
             if (atoi(argv[i + 1]) < MIN_HEIGHT) test_exit("El valor mínimo para el alto es demasiado bajo", true);
-            strcpy(arguments->height, argv[++i]);
+            strncpy(arguments->height, argv[++i], sizeof(arguments->height) - 1);
+            arguments->height[sizeof(arguments->height) - 1] = '\0';
         } else if (!strcmp(argv[i], "-w") && i + 1 < argc) {
             if (atoi(argv[i + 1]) < MIN_WIDTH) test_exit("El valor mínimo para el ancho es demasiado bajo", true);
-            strcpy(arguments->width, argv[++i]);
+            strncpy(arguments->width, argv[++i], sizeof(arguments->width) - 1);
+            arguments->width[sizeof(arguments->width) - 1] = '\0';
         } else if (!strcmp(argv[i], "-d") && i + 1 < argc) {
             arguments->delay = atoi(argv[++i]);
         } else if (!strcmp(argv[i], "-t") && i + 1 < argc) {
@@ -339,13 +273,6 @@ int parse_childs(int argc, char *argv[], argument_t *arguments, requester_t play
     test_exit("Error: se requiere por lo menos un jugador\n", players_count < 1);
 
     return players_count;
-}
-
-void test_exit(const char *msg, int condition) {
-    if (condition) {
-        perror(msg);
-        exit(EXIT_FAILURE);
-    }
 }
 
 void safe_exit(const char *msg, int condition, shm_adt shm_board, shm_adt shm_sync, requester_t fds[],

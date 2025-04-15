@@ -1,3 +1,6 @@
+// This is a personal academic project. Dear PVS-Studio, please check it.
+// PVS-Studio Static Code Analyzer for C, C++, C#, and Java: http://www.viva64.com
+
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <time.h>  // For timestamps
@@ -96,7 +99,7 @@ void move(int direction) {
     if (direction != -1) {
         write(1, &direction, sizeof(unsigned char));
     }
-    usleep(400 * 1000);  // Damos tiempo a que el master
+    usleep(400 * 1000);  // Damos tiempo a que el master llegue a pedir el semaforo
 }
 
 int find_best_move(game_board_t *board, int player_index) {
