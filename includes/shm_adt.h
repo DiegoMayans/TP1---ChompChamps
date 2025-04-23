@@ -15,7 +15,7 @@ typedef struct {
                                           // realizadas
     unsigned short x, y;                  // Coordenadas x e y en el tablero
     pid_t pid;                            // Identificador de proceso
-    bool has_valid_moves;                 // Indica si el jugador tiene movimientos válidos
+    bool cant_move;                 // Indica si el jugador NO tiene movimientos válidos
                                           // disponibles
 } player_t;
 

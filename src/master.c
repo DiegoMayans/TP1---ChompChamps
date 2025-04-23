@@ -297,7 +297,7 @@ void initialize_player(player_t *player, pid_t pid) {
     player->move_req_count = 0;
     player->x = 0;
     player->y = 0;
-    player->has_valid_moves = true;
+    player->cant_move = false;
     player->pid = pid;
 }
 
