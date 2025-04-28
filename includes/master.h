@@ -11,6 +11,7 @@
 #include <time.h>
 #include <unistd.h>
 #include <valgrind/valgrind.h>
+#include <sys/mman.h>
 
 #include "../includes/defs.h"
 #include "../includes/round_robin_adt.h"
