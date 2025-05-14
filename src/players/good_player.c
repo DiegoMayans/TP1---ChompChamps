@@ -15,6 +15,7 @@
 
 void move(int direction);
 int find_best_move(game_board_t *board, int player_index);
+void clean_close(shm_adt shm_board, shm_adt shm_sync);
 
 int main(int argc, char *argv[]) {
     setvbuf(stdout, NULL, _IONBF, 0);
@@ -39,37 +40,49 @@ int main(int argc, char *argv[]) {
     game_sync_t *sync = shm_get_game_sync(shm_sync);
     bool should_find_best_move(game_board_t * board, int my_index, int prev_x, int prev_y, int prev_move);
 
-    int first_read = 1, my_index = -1, best_move = -1, prev_x = -1, prev_y = -1, prev_move = -1;
+    int my_index = -1;
+    for (int i = 0; i < board->player_count; i++) {
+        if (board->players_list[i].pid == pid) {
+            my_index = i;
+            break;
+        }
+    }
+
+    int best_move = -1, prev_x = -1, prev_y = -1, prev_move = -1;
+
+    int last_sum_valid_invalid = -1;
+    int current_sum_valid_invalid;
+
     while (true) {
         sem_wait(&sync->access_queue);
-        sem_wait(&sync->count_access);
-        sync->players_reading_count++;
-        if (sync->players_reading_count == 1) {
-            sem_wait(&sync->game_state_access);
-        }
-        sem_post(&sync->count_access);
         sem_post(&sync->access_queue);
 
-        if (first_read) {
-            for (int i = 0; i < board->player_count; i++) {
-                if (board->players_list[i].pid == pid) {
-                    my_index = i;
-                    break;
-                }
-            }
-            first_read = 0;
-        }
-
-        if (board->game_has_finished) {
+        do {
             sem_wait(&sync->count_access);
-            sync->players_reading_count--;
-            if (sync->players_reading_count == 0) {
+            if (sync->players_reading_count++ == 0) {
+                sem_wait(&sync->game_state_access);
+            }
+            sem_post(&sync->count_access);
+
+            current_sum_valid_invalid =
+                board->players_list[my_index].move_req_count + board->players_list[my_index].invalid_move_req_count;
+
+            int local_game_has_finished = board->game_has_finished;
+
+            sem_wait(&sync->count_access);
+            if (sync->players_reading_count-- == 1) {
                 sem_post(&sync->game_state_access);
             }
             sem_post(&sync->count_access);
-            break;
-        }
 
+            if (local_game_has_finished) {
+                clean_close(shm_board, shm_sync);
+            }
+
+        } while (current_sum_valid_invalid == last_sum_valid_invalid);
+        last_sum_valid_invalid = current_sum_valid_invalid;
+
+        // Decide next movement (should_find_best_move might be unnecessary)
         if (should_find_best_move(board, my_index, prev_x, prev_y, prev_move)) {
             best_move = find_best_move(board, my_index);
         } else {
@@ -80,26 +93,21 @@ int main(int argc, char *argv[]) {
         prev_y = board->players_list[my_index].y;
         prev_move = best_move;
 
-        sem_wait(&sync->count_access);
-        sync->players_reading_count--;
-        if (sync->players_reading_count == 0) {
-            sem_post(&sync->game_state_access);
-        }
-        sem_post(&sync->count_access);
-
+        // Move
         move(best_move);
     }
+}
 
+void clean_close(shm_adt shm_board, shm_adt shm_sync) {
     shm_close(shm_board);
     shm_close(shm_sync);
-    return 0;
+    exit(EXIT_SUCCESS);
 }
 
 void move(int direction) {
     if (direction != -1) {
         write(1, &direction, sizeof(unsigned char));
     }
-    usleep(400 * 1000);  // Damos tiempo a que el master llegue a pedir el semaforo
 }
 
 int find_best_move(game_board_t *board, int player_index) {
